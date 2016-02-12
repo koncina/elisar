@@ -1,0 +1,20 @@
+Package: elisar
+Type: Package
+Title: Elisa 4PL regression
+Version: 0.1
+Date: 2016-02-12
+Author: Eric Koncina
+Maintainer: Eric Koncina <mail@koncina.eu>
+Description: Perform a 4PL regression of Elisa O.D. measures. Loads Tecan
+    Sunrise excel files (edited to contain the plate layout and sample informations)
+Imports:
+    drc,
+    dplyr,
+    readxl,
+    readr
+Suggests:
+    ggplot2
+URL: http://eric.koncina.eu/r/elisar
+License: LGPL-3
+LazyData: TRUE
+RoxygenNote: 5.0.1
