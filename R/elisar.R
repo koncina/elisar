@@ -151,7 +151,7 @@ elisa.standard = function(standard, unit = "pg/ml") {
 #' }
 #'
 #' @export
-elisa.analyze = function(df, blank = FALSE, tansform = FALSE, tecan = FALSE, ignore.dilution = FALSE, std.key = "STD") {
+elisa.analyse = function(df, blank = FALSE, tansform = FALSE, tecan = FALSE, ignore.dilution = FALSE, std.key = "STD") {
   if (!"id" %in% colnames(df)) stop("Missing mandatory column 'id'")
 
   # Adjusting the dataframe (od can be log-transformed, blank substracted or fixed for a Tecan bug)
@@ -193,3 +193,7 @@ elisa.analyze = function(df, blank = FALSE, tansform = FALSE, tecan = FALSE, ign
 
   return(list(standard = std, data = df))
 }
+
+#' @rdname elisa.analyse
+#' @export
+elisa.analyze <- elisa.analyse
