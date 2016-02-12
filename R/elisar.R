@@ -69,7 +69,7 @@ elisa.load = function(input) {
     na.row <- apply(id, 1, function(x) all(is.na(x)))
     id <- read_excel(input, sheet = 2, skip = 8 + which(!na.row)[1])
   }
-
+  
   if (!"id" %in% colnames(id)) stop("Missing column 'id'")
   if (!"name" %in% colnames(id)) message("Missing column 'name'. You won't be able to run elisa.analyze().")
   # Fixing the number to string conversion (a readxl 'strict' behaviour)
@@ -80,7 +80,7 @@ elisa.load = function(input) {
   data <- full_join(data, id, by = c("id")) %>%
     filter(tolower(id) != "empty") %>%
     mutate(file = basename(input)) %>%
-    select(file, row, column, id, od, name, everything())
+    select(file, row, column, id, od, everything())
   if (ext == "xls" && is.readxl.bugging(data)) message("Detected suspicious text values during import. Consider converting xls to xlsx!")
   return(data)
 }
