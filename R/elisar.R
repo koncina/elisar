@@ -71,7 +71,6 @@ elisa.load = function(input) {
   }
   
   if (!"id" %in% colnames(id)) stop("Missing column 'id'")
-  if (!"name" %in% colnames(id)) message("Missing column 'name'. You won't be able to run elisa.analyze().")
   # Fixing the number to string conversion (a readxl 'strict' behaviour)
   id$id <- sub("\\.0{6}$", "", id$id)
   data <- gather(data, key = column, value = od,  -row)
@@ -128,9 +127,9 @@ elisa.standard = function(standard, unit = "pg/ml") {
 #'
 #' Requires ggplot2
 #'
-#' @param df dataframe containing the O.D. values and at least the 'id' and 'name' columns
+#' @param df dataframe containing the O.D. values and at least the 'id' column
 #'
-#' @param blank whether the blank values (rows with name = 'blank') should be substracted or not from all O.D. values
+#' @param blank whether the blank values (rows with id = 'blank') should be substracted or not from all O.D. values
 #'
 #' @param transform whether the O.D. values should be log10 transformed or not prior regression
 #'
@@ -152,22 +151,22 @@ elisa.standard = function(standard, unit = "pg/ml") {
 #' }
 #'
 #' @export
-elisa.analyze = function(df, blank = FALSE, tansform = FALSE, tecan = FALSE, ignore.dilution = FALSE, std.key = "STD_") {
-  if (!all(c("id", "name") %in% colnames(df))) stop("Missing mandatory column ('id' and/or 'name')")
+elisa.analyze = function(df, blank = FALSE, tansform = FALSE, tecan = FALSE, ignore.dilution = FALSE, std.key = "STD") {
+  if (!"id" %in% colnames(df)) stop("Missing mandatory column 'id'")
 
   # Adjusting the dataframe (od can be log-transformed, blank substracted or fixed for a Tecan bug)
   df <- df %>%
     filter(tolower(id) != "empty") %>%
     mutate(y = od) %>% # y will be our "response" variable (od)
     mutate_if(is.true = tecan, y = ifelse(y > 1000, y/1000, y)) %>% # Tecan generates excel sheets with wrong values (locale bug?)
-    mutate_if(is.true = blank, y = y - mean(y[name == "blank"], na.rm = TRUE)) %>%
+    mutate_if(is.true = blank, y = y - mean(y[id == "blank"], na.rm = TRUE)) %>%
     mutate_if(is.true = transform, y = log10(y))
 
   # Creating a dataframe containing the standard curve points
   std <- df %>%
     mutate(type = "point") %>%
-    filter(grepl("^STD_", ignore.case = TRUE, name)) %>%
-    mutate(name = gsub(",", ".", name), x = parse_number(name)) %>%
+    filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
+    mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
     mutate(log.x = log10(x)) %>%
     filter(x > 0)
 
@@ -185,7 +184,7 @@ elisa.analyze = function(df, blank = FALSE, tansform = FALSE, tecan = FALSE, ign
     bind_cols(tidy(suppressWarnings(drc::ED(std.4PL, .$y, type = "absolute", display = F)))) %>%
     rename(concentration = Estimate, concentration.sd = Std..Error) %>%
     mutate(concentration = ifelse(is.na(concentration) & y < summary(std.4PL)[[3]][[2]], 0, concentration)) %>%
-    select(file, column, row, id, name, everything(), -.rownames, -y, -od, od) %>%
+    select(file, column, row, id, everything(), -.rownames, -y, -od, od) %>%
     # Applying the dilution factor if present
     mutate_if(is.true = ("dilution" %in% colnames(df) & (!isTRUE(ignore.dilution))),
               dilution = ifelse(is.na(dilution), 1, dilution),
