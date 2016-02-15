@@ -168,7 +168,9 @@ elisa.analyse = function(df, blank = FALSE, tansform = FALSE, tecan = FALSE, ign
     filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
     mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
     mutate(log.x = log10(x)) %>%
-    filter(x > 0)
+    filter(!is.na(y), x > 0)
+
+  if (nrow(std) < 4) stop("Not enough standard points to perform the regression...")
 
   # Performing the 4PL regression (with drc::drm)
   std.4PL <- drc::drm(y ~ log10(x), data = std, fct = drc::LL.4(), logDose = 10)
