@@ -7,7 +7,7 @@
 elisa.load(input)
 }
 \arguments{
-\item{input}{path to the input files}
+\item{input}{vector containing the path(s) to the input file(s)}
 }
 \description{
 Reads excel files exported from Tecan Sunrise and modified according to the documentation.
@@ -21,6 +21,7 @@ library(elisar)
 
 # Import file
 df <- elisa.load("od_measure.xls")
+df <- elisa.load(c("od_measure1.xls", "od_measure2.xls"))
 }
 
 }

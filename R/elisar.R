@@ -8,36 +8,35 @@ mutate_if <- function(.data, is.true = TRUE, ...) {
   else return(.data)
 }
 
-fix.dataframe = function(df, text = FALSE) {
+fix.dataframe = function(.df, text = FALSE) {
   # Fixing the conversion of excel integers into string values generating trailing zeros (1 -> 1.000000)
   # Column names are fixed with readr::parse_number
-  names(df)[-1] <- parse_number(names(df)[-1])
-  names(df)[names(df) == '<>'] <- 'row'
+  names(.df)[-1] <- parse_number(names(.df)[-1])
+  names(.df)[names(.df) == '<>'] <- 'row'
   # If text is TRUE, we need to correct all converted values within the dataframe
   # We could use readr::parse_number but the regex approach might be safer as it will only change
   # string values ending with a dot followed by 6 zero characters.
-  if (isTRUE(text)) df <- tbl_df(as.data.frame(sub("\\.0{6}$", "", as.matrix(df)), stringsAsFactors = FALSE))
-  return(df)
+  if (isTRUE(text)) .df <- tbl_df(as.data.frame(sub("\\.0{6}$", "", as.matrix(.df)), stringsAsFactors = FALSE))
+  return(.df)
 }
 
 # Reading xls files with readxl might fail importing some text cells
 # which would be replaced by "0.00" values...
-is.readxl.bugging = function(df) {
+is.readxl.bugging = function(.df) {
   check = function(x) {
     if ("0.00" %in% x) return(TRUE)
     return(FALSE)
   }
-  b <- df %>% summarise_each(funs(check)) %>% rowSums(.)
+  b <- .df %>% summarise_each(funs(check)) %>% rowSums(.)
   if (b > 0) return(TRUE)
   return(FALSE)
 }
-
 
 #' Import the OD measures from the Tecan sunrise excel sheet
 #'
 #' Reads excel files exported from Tecan Sunrise and modified according to the documentation.
 #'
-#' @param input path to the input files
+#' @param input vector containing the path(s) to the input file(s)
 #'
 #' @details Example on how to prepare the Tecan excel sheet to be imported can be found at \url{http://eric.koncina.eu/r/elisar}.
 #'
@@ -47,10 +46,16 @@ is.readxl.bugging = function(df) {
 #'
 #' # Import file
 #' df <- elisa.load("od_measure.xls")
+#' df <- elisa.load(c("od_measure1.xls", "od_measure2.xls"))
 #' }
 #'
 #' @export
 elisa.load = function(input) {
+  do.call(rbind, lapply(input, elisa.load.single))
+}
+
+# elisa.load.single will load a single input file
+elisa.load.single = function(input) {
   # Function is expecting a Magellan xls with two additional sheets containing the plate layout and the sample IDs
 
   # Checking the extension
@@ -128,13 +133,15 @@ elisa.standard = function(standard, unit = "pg/ml") {
 #'
 #' Requires ggplot2
 #'
-#' @param df dataframe containing the O.D. values and at least the 'id' column
+#' @param .df dataframe containing the O.D. values and at least the 'id' column
 #'
-#' @param blank whether the blank values (rows with id = 'blank') should be substracted or not from all O.D. values
+#' @param blank substract blank values (id = 'blank') from all O.D. values
 #'
-#' @param transform whether the O.D. values should be log10 transformed or not prior regression
+#' @param transform log10 transform O.D. values prior regression
 #'
-#' @param tecan whether the O.D. values should be log10 transformed or not prior regression
+#' @param tecan fix bad Tecan O.D. values (>1000)
+#'
+#' @param multi.regression perform a regression on each individual file when a multiple files dataset is supplied, 
 #'
 #' @return A list object containing the standard curve and the modified input dataframe to include the calculated concentrations
 #'
@@ -152,11 +159,37 @@ elisa.standard = function(standard, unit = "pg/ml") {
 #' }
 #'
 #' @export
-elisa.analyse = function(df, blank = FALSE, transform = FALSE, tecan = FALSE, ignore.dilution = FALSE, std.key = "STD") {
-  if (!"id" %in% colnames(df)) stop("Missing mandatory column 'id'")
+elisa.analyse = function(.df, ..., multi.regression = TRUE) {
+  if (!isTRUE(multi.regression)) return(elisa.analyse.single(.df, ...))
+  
+  .df <- .df %>%
+    group_by(file) %>%
+    do(result = elisa.analyse.single(., ...)) 
+  
+  .data <- .df %>%
+    rowwise() %>%
+    do(.$result$data) %>%
+    ungroup()
+  
+  .standard <- .df %>%
+    rowwise() %>%
+    do(.$result$standard) %>%
+    ungroup()
+  
+  return(list(standard = .standard, data = .data))
+}
+
+#' @rdname elisa.analyse
+#' @export
+elisa.analyze <- elisa.analyse
+
+# elisa.analyse is able to handle a dataframe containing the data from multiple files.
+# For each subset (file) it will call the elisa.analyse.single function unless multi.regression is set to FALSE
+elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, ignore.dilution = FALSE, std.key = "STD") {
+  if (!"id" %in% colnames(.df)) stop("Missing mandatory column 'id'")
 
   # Adjusting the dataframe (od can be log-transformed, blank substracted or fixed for a Tecan bug)
-  df <- df %>%
+  .df <- .df %>%
     filter(tolower(id) != "empty") %>%
     mutate(y = od) %>% # y will be our "response" variable (od)
     mutate_if(is.true = tecan, y = ifelse(y > 1000, y/1000, y)) %>% # Tecan generates excel sheets with wrong values (locale bug?)
@@ -164,8 +197,13 @@ elisa.analyse = function(df, blank = FALSE, transform = FALSE, tecan = FALSE, ig
     mutate_if(is.true = transform, y = log10(y))
 
   # Creating a dataframe containing the standard curve points
-  std <- df %>%
-    mutate(type = "point") %>%
+  
+  # We should only have a single file except if multi.regression is FALSE
+  # In this case, for the standard curve, we substitute the distinct filenames by the collapsed names.
+  .file <- paste(unique(.df$file), collapse = ", ")
+  
+  std <- .df %>%
+    mutate(type = "point", file = .file) %>%
     filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
     mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
     mutate(log.x = log10(x)) %>%
@@ -178,25 +216,21 @@ elisa.analyse = function(df, blank = FALSE, transform = FALSE, tecan = FALSE, ig
 
   # Extend the std dataframe and add points to draw the predicted curve
   std <- data.frame(log.x = seq(min(log10(std$x)), max(log10(std$x)), length.out = 100)) %>%
-    mutate(x = 10^log.x, y = predict(std.4PL, .), type = "curve", file = unique(std$file)) %>%
+    mutate(x = 10^log.x, y = predict(std.4PL, .), type = "curve", file = .file) %>%
     bind_rows(std)  %>%
     select(file, type, x, y)
 
   # We use the inverse model (ED) to predict the concentration corresponding to the O.D values
-  df <- df %>%
+  .df <- .df %>%
     bind_cols(tidy(suppressWarnings(drc::ED(std.4PL, .$y, type = "absolute", display = F)))) %>%
     rename(concentration = Estimate, concentration.sd = Std..Error) %>%
     mutate(concentration = ifelse(is.na(concentration) & y < summary(std.4PL)[[3]][[2]], 0, concentration)) %>%
     select(file, column, row, id, everything(), -.rownames, -y, -od, od) %>%
     # Applying the dilution factor if present
-    mutate_if(is.true = ("dilution" %in% colnames(df) & (!isTRUE(ignore.dilution))),
+    mutate_if(is.true = ("dilution" %in% colnames(.df) & (!isTRUE(ignore.dilution))),
               dilution = ifelse(is.na(dilution), 1, dilution),
               concentration = dilution * concentration,
               concentration.sd = dilution * concentration.sd)
 
-  return(list(standard = std, data = df))
+  return(list(standard = std, data = .df))
 }
-
-#' @rdname elisa.analyse
-#' @export
-elisa.analyze <- elisa.analyse

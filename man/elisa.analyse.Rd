@@ -5,20 +5,20 @@
 \alias{elisa.analyze}
 \title{Draws the standard curve of the elisa analysis}
 \usage{
-elisa.analyse(df, blank = FALSE, tansform = FALSE, tecan = FALSE,
-  ignore.dilution = FALSE, std.key = "STD")
+elisa.analyse(.df, ..., multi.regression = TRUE)
 
-elisa.analyze(df, blank = FALSE, tansform = FALSE, tecan = FALSE,
-  ignore.dilution = FALSE, std.key = "STD")
+elisa.analyze(.df, ..., multi.regression = TRUE)
 }
 \arguments{
-\item{df}{dataframe containing the O.D. values and at least the 'id' column}
+\item{.df}{dataframe containing the O.D. values and at least the 'id' column}
 
-\item{blank}{whether the blank values (rows with id = 'blank') should be substracted or not from all O.D. values}
+\item{multi.regression}{perform a regression on each individual file when a multiple files dataset is supplied,}
 
-\item{tecan}{whether the O.D. values should be log10 transformed or not prior regression}
+\item{blank}{substract blank values (id = 'blank') from all O.D. values}
 
-\item{transform}{whether the O.D. values should be log10 transformed or not prior regression}
+\item{transform}{log10 transform O.D. values prior regression}
+
+\item{tecan}{fix bad Tecan O.D. values (>1000)}
 }
 \value{
 A list object containing the standard curve and the modified input dataframe to include the calculated concentrations
