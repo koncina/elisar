@@ -119,6 +119,7 @@ elisa.standard = function(standard, unit = "pg/ml") {
     theme_bw() +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     scale_x_continuous(paste("Standard concentration in", unit, "(log10 scale)"), breaks= log10(x.scale), labels = x.scale) +
+    ylab("O.D. value") +
     facet_wrap(~ file)
   return(p)
 }
