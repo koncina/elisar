@@ -12,11 +12,15 @@ elisa.analyze(.df, ..., multi.regression = TRUE)
 \arguments{
 \item{.df}{dataframe containing the O.D. values and at least the 'id' column}
 
-\item{multi.regression}{perform a regression on each individual file when a multiple files dataset is supplied,}
+\item{multi.regression}{perform a regression on each individual file when a multiple files dataset is supplied}
 
 \item{blank}{substract blank values (id = 'blank') from all O.D. values}
 
-\item{transform}{log10 transform O.D. values prior regression}
+\item{log10}{transform O.D. values before regression}
+
+\item{search}{for standard point values by ids starting with std.key (default = "STD")}
+
+\item{ignore.dilution}{ignore the dilution column even if present for the concentration calculation}
 
 \item{tecan}{fix bad Tecan O.D. values (>1000)}
 }

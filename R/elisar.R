@@ -137,11 +137,15 @@ elisa.standard = function(standard, unit = "pg/ml") {
 #'
 #' @param blank substract blank values (id = 'blank') from all O.D. values
 #'
-#' @param transform log10 transform O.D. values prior regression
+#' @param log10 transform O.D. values before regression
+#'
+#' @param search for standard point values by ids starting with std.key (default = "STD")
+#' 
+#' @param ignore.dilution ignore the dilution column even if present for the concentration calculation
 #'
 #' @param tecan fix bad Tecan O.D. values (>1000)
-#'
-#' @param multi.regression perform a regression on each individual file when a multiple files dataset is supplied, 
+#' 
+#' @param multi.regression perform a regression on each individual file when a multiple files dataset is supplied
 #'
 #' @return A list object containing the standard curve and the modified input dataframe to include the calculated concentrations
 #'
@@ -193,7 +197,7 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
     filter(tolower(id) != "empty") %>%
     mutate(y = od) %>% # y will be our "response" variable (od)
     mutate_if(is.true = tecan, y = ifelse(y > 1000, y/1000, y)) %>% # Tecan generates excel sheets with wrong values (locale bug?)
-    mutate_if(is.true = blank, y = y - mean(y[id == "blank"], na.rm = TRUE)) %>%
+    mutate_if(is.true = blank, y = y - mean(y[tolower(id) == "blank"], na.rm = TRUE)) %>%
     mutate_if(is.true = transform, y = log10(y))
 
   # Creating a dataframe containing the standard curve points
