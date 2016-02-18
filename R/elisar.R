@@ -62,8 +62,9 @@ elisa.load.single = function(input) {
   ext <- gsub(".*\\.([[:alnum:]]+)$", "\\1", input)
   if (!ext %in% c("xls", "xlsx")) stop("Wrong input file format! (expecting an xls or xlsx Excel file)")
 
-  data <- fix.dataframe(read_excel(input, sheet = 1))
-  layout <- fix.dataframe(read_excel(input, sheet = 2)[1:8,1:13], text = TRUE)
+  data <- fix.dataframe(read_excel(input, sheet = 1)[1:8, 1:13]) %>%
+    mutate_each(funs(as.numeric), -row) # Necessary if someone added some text outside the [1:8, 1:13] area
+  layout <- fix.dataframe(read_excel(input, sheet = 2)[1:8, 1:13], text = TRUE)
   # Layout and id can reside on two different sheets (preferred)
   # We are checking whether a third sheet exists
   id <- tryCatch(read_excel(input, sheet = 3), error=function(e) return(NULL))
