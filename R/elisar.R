@@ -67,7 +67,7 @@ elisa.load.single = function(input) {
   layout <- fix.dataframe(read_excel(input, sheet = 2)[1:8, 1:13], text = TRUE)
   # Layout and id can reside on two different sheets (preferred)
   # We are checking whether a third sheet exists
-  id <- tryCatch(read_excel(input, sheet = 3), error=function(e) return(NULL))
+  id <- tryCatch(read_excel(input, sheet = 3), error = function(e) return(NULL))
   if (is.null(id)) {
     # id are not present on the third sheet
     # Trying to locate the id table on the second sheet:
@@ -75,6 +75,13 @@ elisa.load.single = function(input) {
     na.row <- apply(id, 1, function(x) all(is.na(x)))
     id <- read_excel(input, sheet = 2, skip = 8 + which(!na.row)[1])
   }
+  
+  # Readxl inaccurately imports empty columns (after an insert/remove cycle?)
+  # We are excluding empty column names as dplyr will stop working
+  id <- id[, colnames(id) != ""]
+  # Alternative: remove completely empty columns:
+  # http://stackoverflow.com/questions/2643939/remove-columns-from-dataframe-where-all-values-are-na
+  # id <- id[, colSums(is.na(id)) < nrow(id)]
   
   if (!"id" %in% colnames(id)) stop("Missing column 'id'")
   # Fixing the number to string conversion (a readxl 'strict' behaviour)
