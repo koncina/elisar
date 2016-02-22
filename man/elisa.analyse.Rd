@@ -3,32 +3,32 @@
 \name{elisa.analyse}
 \alias{elisa.analyse}
 \alias{elisa.analyze}
-\title{Draws the standard curve of the elisa analysis}
+\title{Analyse the O.D. values (regression)}
 \usage{
 elisa.analyse(.df, ..., multi.regression = TRUE)
 
 elisa.analyze(.df, ..., multi.regression = TRUE)
 }
 \arguments{
-\item{.df}{dataframe containing the O.D. values and at least the 'id' column}
+\item{.df}{dataframe containing at least the od and id columns (with O.D. values and sample identifiers).}
 
-\item{multi.regression}{perform a regression on each individual file when a multiple files dataset is supplied}
+\item{multi.regression}{a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'elisa.load').}
 
-\item{blank}{substract blank values (id = 'blank') from all O.D. values}
+\item{blank}{a logical value indicating whether blank values (id = 'blank') should be substracted from all O.D. values.}
 
-\item{log10}{transform O.D. values before regression}
+\item{log10}{a logical value indicating whether O.D. values should be log10 transformed before the regression.}
 
-\item{search}{for standard point values by ids starting with std.key (default = "STD")}
+\item{std.key}{a character string specifying the common starting pattern of standard point ids (default = "STD").}
 
-\item{ignore.dilution}{ignore the dilution column even if present for the concentration calculation}
+\item{dilution.column}{NULL or character string specifying a column to be used for the sample dilution factors (default = NULL).}
 
-\item{tecan}{fix bad Tecan O.D. values (>1000)}
+\item{tecan}{a logical value indicating whether bad Tecan O.D. values (>1000) should be fixed.}
 }
 \value{
-A list object containing the standard curve and the modified input dataframe to include the calculated concentrations
+A list object containing the standard curve and the modified input dataframe to include the calculated concentrations.
 }
 \description{
-Requires ggplot2
+Performs a 4-PL regression of the standard values and converts the O.D. into concentration values.
 }
 \details{
 A complete example on how to perform an analysis can be found at \url{http://eric.koncina.eu/r/elisar}.
