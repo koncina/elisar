@@ -51,7 +51,8 @@ is.readxl.bugging = function(.df) {
 #'
 #' @export
 elisa.load = function(input) {
-  do.call(rbind, lapply(input, elisa.load.single))
+  # Switching from do.call to dplyr (thank to A. Ginolhac)
+  lapply(input, elisa.load.single) %>% bind_rows()
 }
 
 # elisa.load.single will load a single input file
