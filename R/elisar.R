@@ -1,3 +1,4 @@
+#' @import digest
 #' @import readr readxl
 #' @import dplyr
 #' @importFrom tidyr gather
@@ -37,6 +38,8 @@ is.readxl.bugging = function(.df) {
 #' Reads excel files exported from Tecan Sunrise and modified according to the documentation.
 #'
 #' @param input vector containing the path(s) to the input file(s)
+#' 
+#' @param checksum a character string specifying the algorithm to calculate the data checksum (defaults to NULL). checksum can be one of c("md5", "sha1", "crc32", "sha256", "sha512").
 #'
 #' @details Example on how to prepare the Tecan excel sheet to be imported can be found at \url{http://eric.koncina.eu/r/elisar}.
 #'
@@ -50,21 +53,26 @@ is.readxl.bugging = function(.df) {
 #' }
 #'
 #' @export
-elisa.load = function(input) {
+elisa.load = function(input, checksum = NULL) {
   # Switching from do.call to dplyr (thank to A. Ginolhac)
-  lapply(input, elisa.load.single) %>% bind_rows()
+  lapply(input, elisa.load.single, checksum = checksum) %>% bind_rows()
 }
 
 # elisa.load.single will load a single input file
-elisa.load.single = function(input) {
+elisa.load.single = function(input, checksum = NULL) {
   # Function is expecting a Magellan xls with two additional sheets containing the plate layout and the sample IDs
 
   # Checking the extension
   ext <- gsub(".*\\.([[:alnum:]]+)$", "\\1", input)
   if (!ext %in% c("xls", "xlsx")) stop("Wrong input file format! (expecting an xls or xlsx Excel file)")
 
+  # Checking the checksum argument:
+  algo <- c("md5", "sha1", "crc32", "sha256", "sha512")
+  if (!is.null(checksum) && !checksum  %in% c(algo)) stop("Unknown checksum algorithm...")
+  
   data <- fix.dataframe(read_excel(input, sheet = 1)[1:8, 1:13]) %>%
     mutate_each(funs(as.numeric), -row) # Necessary if someone added some text outside the [1:8, 1:13] area
+  data.checksum <- digest(data, algo = checksum)
   layout <- fix.dataframe(read_excel(input, sheet = 2)[1:8, 1:13], text = TRUE)
   # Layout and id can reside on two different sheets (preferred)
   # We are checking whether a third sheet exists
@@ -93,6 +101,7 @@ elisa.load.single = function(input) {
   data <- full_join(data, id, by = c("id")) %>%
     filter(tolower(id) != "empty") %>%
     mutate(file = basename(input)) %>%
+    mutate_if(is.true = checksum %in% algo, checksum = data.checksum) %>%
     select(file, row, column, id, od, everything())
   if (ext == "xls" && is.readxl.bugging(data)) message("Detected suspicious text values during import. Consider converting xls to xlsx!")
   return(data)

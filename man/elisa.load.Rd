@@ -4,10 +4,12 @@
 \alias{elisa.load}
 \title{Import the OD measures from the Tecan sunrise excel sheet}
 \usage{
-elisa.load(input)
+elisa.load(input, checksum = NULL)
 }
 \arguments{
 \item{input}{vector containing the path(s) to the input file(s)}
+
+\item{checksum}{a character string specifying the algorithm to calculate the data checksum (defaults to NULL). checksum can be one of c("md5", "sha1", "crc32", "sha256", "sha512").}
 }
 \description{
 Reads excel files exported from Tecan Sunrise and modified according to the documentation.
