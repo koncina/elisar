@@ -1,5 +1,6 @@
 #' @import digest
-#' @import readr readxl
+#' @import readr
+#' @import readxl
 #' @import dplyr
 #' @importFrom tidyr gather
 #' @import broom
