@@ -12,6 +12,8 @@ mutate_if <- function(.data, is.true = TRUE, ...) {
 
 fix.dataframe = function(.df, text = FALSE) {
   # Fixing the conversion of excel integers into string values generating trailing zeros (1 -> 1.000000)
+  # .df was returned from try: checking if it is a data.frame
+  if (!is.data.frame(.df)) stop("Couldn't find data in excel sheet")
   # Column names are fixed with readr::parse_number
   names(.df)[-1] <- parse_number(names(.df)[-1])
   names(.df)[names(.df) == '<>'] <- 'row'
@@ -71,10 +73,10 @@ elisa.load.single = function(input, checksum = NULL) {
   algo <- c("md5", "sha1", "crc32", "sha256", "sha512")
   if (!is.null(checksum) && !checksum  %in% c(algo)) stop("Unknown checksum algorithm...")
   
-  data <- fix.dataframe(read_excel(input, sheet = 1)[1:8, 1:13]) %>%
+  data <- fix.dataframe(try(read_excel(input, sheet = 1)[1:8, 1:13])) %>%
     mutate_each(funs(as.numeric), -row) # Necessary if someone added some text outside the [1:8, 1:13] area
   data.checksum <- digest(data, algo = checksum)
-  layout <- fix.dataframe(read_excel(input, sheet = 2)[1:8, 1:13], text = TRUE)
+  layout <- fix.dataframe(try(read_excel(input, sheet = 2)[1:8, 1:13]), text = TRUE)
   # Layout and id can reside on two different sheets (preferred)
   # We are checking whether a third sheet exists
   id <- tryCatch(read_excel(input, sheet = 3), error = function(e) return(NULL))
