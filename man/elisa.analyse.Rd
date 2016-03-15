@@ -16,7 +16,7 @@ elisa.analyze(.df, ..., multi.regression = TRUE)
 
 \item{blank}{a logical value indicating whether blank values (id = 'blank') should be substracted from all O.D. values.}
 
-\item{log10}{a logical value indicating whether O.D. values should be log10 transformed before the regression.}
+\item{transform}{a logical value indicating whether O.D. values should be log10 transformed before the regression.}
 
 \item{std.key}{a character string specifying the common starting pattern of standard point ids (default = "STD").}
 
