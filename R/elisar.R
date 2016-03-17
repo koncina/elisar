@@ -52,8 +52,8 @@ is.readxl.bugging = function(.df) {
 #' library(elisar)
 #'
 #' # Import file
-#' df <- elisa.load("od_measure.xls")
-#' df <- elisa.load(c("od_measure1.xls", "od_measure2.xls"))
+#' df <- import.tecan("od_measure.xls")
+#' df <- import.tecan(c("od_measure1.xls", "od_measure2.xls"))
 #' }
 #'
 #' @export
