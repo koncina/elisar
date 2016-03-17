@@ -56,13 +56,13 @@ is.readxl.bugging = function(.df) {
 #' }
 #'
 #' @export
-elisa.load = function(input, checksum = NULL) {
+import.tecan = function(input, checksum = NULL) {
   # Switching from do.call to dplyr (thank to A. Ginolhac)
-  lapply(input, elisa.load.single, checksum = checksum) %>% bind_rows()
+  lapply(input, import.tecan.single, checksum = checksum) %>% bind_rows()
 }
 
 # elisa.load.single will load a single input file
-elisa.load.single = function(input, checksum = NULL) {
+import.tecan.single = function(input, checksum = NULL) {
   # Function is expecting a Magellan xls with two additional sheets containing the plate layout and the sample IDs
 
   # Checking the extension

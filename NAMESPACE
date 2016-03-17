@@ -2,8 +2,8 @@
 
 export(elisa.analyse)
 export(elisa.analyze)
-export(elisa.load)
 export(elisa.standard)
+export(import.tecan)
 import(broom)
 import(digest)
 import(dplyr)
