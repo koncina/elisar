@@ -42,7 +42,8 @@ is.readxl.bugging = function(.df) {
 #'
 #' @param input vector containing the path(s) to the input file(s)
 #' 
-#' @param checksum a character string specifying the algorithm to calculate the data checksum (defaults to NULL). checksum can be one of c("md5", "sha1", "crc32", "sha256", "sha512").
+#' @param checksum a character string specifying the algorithm to calculate the data checksum (defaults to "md5"). checksum can be one of c("md5", "sha1", "crc32", "sha256", "sha512").
+#'                  The checksum is stored in the attributes.
 #'
 #' @details Example on how to prepare the Tecan excel sheet to be imported can be found at \url{http://eric.koncina.eu/r/elisar}.
 #'
@@ -56,13 +57,18 @@ is.readxl.bugging = function(.df) {
 #' }
 #'
 #' @export
-import.tecan = function(input, checksum = NULL) {
+import.tecan = function(input, checksum = "md5") {
+  names(input) <- basename(input)
+  l <- lapply(input, import.tecan.single, checksum = checksum)
+  cs <- unlist(lapply(l, function(x){attributes(x)[checksum][[1]]}))
   # Switching from do.call to dplyr (thank to A. Ginolhac)
-  lapply(input, import.tecan.single, checksum = checksum) %>% bind_rows()
+  .df <- l %>% bind_rows(.id = "file")
+  attr(.df, checksum) <- cs
+  return(.df)
 }
 
 # elisa.load.single will load a single input file
-import.tecan.single = function(input, checksum = NULL) {
+import.tecan.single = function(input, checksum = "md5") {
   # Function is expecting a Magellan xls with two additional sheets containing the plate layout and the sample IDs
 
   # Checking the extension
@@ -71,7 +77,7 @@ import.tecan.single = function(input, checksum = NULL) {
 
   # Checking the checksum argument:
   algo <- c("md5", "sha1", "crc32", "sha256", "sha512")
-  if (!is.null(checksum) && !checksum  %in% c(algo)) stop("Unknown checksum algorithm...")
+  if (!checksum  %in% c(algo)) stop("Unknown checksum algorithm...")
   
   data <- fix.dataframe(try(read_excel(input, sheet = 1)[1:8, 1:13])) %>%
     mutate_each(funs(as.numeric), -row) # Necessary if someone added some text outside the [1:8, 1:13] area
@@ -81,7 +87,7 @@ import.tecan.single = function(input, checksum = NULL) {
   # We are checking whether a third sheet exists
   id <- tryCatch(read_excel(input, sheet = 3), error = function(e) return(NULL))
   if (is.null(id)) {
-    # id are not present on the third sheet
+    # id table is not present on the third sheet
     # Trying to locate the id table on the second sheet:
     id <- read_excel(input, sheet = 2, skip = 9, col_names = F)
     na.row <- apply(id, 1, function(x) all(is.na(x)))
@@ -103,9 +109,8 @@ import.tecan.single = function(input, checksum = NULL) {
   data <- full_join(layout, data, by = c("row", "column"))
   data <- full_join(data, id, by = c("id")) %>%
     filter(tolower(id) != "empty") %>%
-    mutate(file = basename(input)) %>%
-    mutate_if(is.true = checksum %in% algo, checksum = data.checksum) %>%
-    select(file, row, column, id, od, everything())
+    select(row, column, id, od, everything())
+  attr(data, checksum) <- data.checksum
   if (ext == "xls" && is.readxl.bugging(data)) message("Detected suspicious text values during import. Consider converting xls to xlsx!")
   return(data)
 }
