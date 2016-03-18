@@ -52,14 +52,14 @@ is.readxl.bugging = function(.df) {
 #' library(elisar)
 #'
 #' # Import file
-#' df <- import.tecan("od_measure.xls")
-#' df <- import.tecan(c("od_measure1.xls", "od_measure2.xls"))
+#' df <- read.tecan("od_measure.xls")
+#' df <- read.tecan(c("od_measure1.xls", "od_measure2.xls"))
 #' }
 #'
 #' @export
-import.tecan = function(input, checksum = "md5") {
+read.tecan = function(input, checksum = "md5") {
   names(input) <- basename(input)
-  l <- lapply(input, import.tecan.single, checksum = checksum)
+  l <- lapply(input, read.tecan.single, checksum = checksum)
   cs <- unlist(lapply(l, function(x){attributes(x)[checksum][[1]]}))
   # Switching from do.call to dplyr (thank to A. Ginolhac)
   .df <- l %>% bind_rows(.id = "file")
@@ -68,7 +68,7 @@ import.tecan = function(input, checksum = "md5") {
 }
 
 # elisa.load.single will load a single input file
-import.tecan.single = function(input, checksum = "md5") {
+read.tecan.single = function(input, checksum = "md5") {
   # Function is expecting a Magellan xls with two additional sheets containing the plate layout and the sample IDs
 
   # Checking the extension

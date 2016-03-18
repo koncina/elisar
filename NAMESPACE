@@ -3,7 +3,7 @@
 export(elisa.analyse)
 export(elisa.analyze)
 export(elisa.standard)
-export(import.tecan)
+export(read.tecan)
 import(broom)
 import(digest)
 import(dplyr)
