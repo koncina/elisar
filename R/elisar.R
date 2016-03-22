@@ -67,7 +67,7 @@ read.tecan = function(input, checksum = "md5") {
   return(.df)
 }
 
-# elisa.load.single will load a single input file
+# read.tecan.single will load a single input file
 read.tecan.single = function(input, checksum = "md5") {
   # Function is expecting a Magellan xls with two additional sheets containing the plate layout and the sample IDs
 
@@ -261,10 +261,11 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
   if (!is.null(dilution.column)) {
     if (!dilution.column %in% colnames(.df)) stop("Could not find specified dilution column!")
     .df <- .df %>%
-      rename_(.dilution = dilution.column) %>%
+      mutate_(.dilution = dilution.column) %>%
       mutate(.dilution = ifelse(is.na(.dilution), 1, .dilution),
                 concentration = .dilution * concentration,
-                concentration.sd = .dilution * concentration.sd)
+                concentration.sd = .dilution * concentration.sd) %>%
+                select(-.dilution)
   }
   return(list(standard = std, data = .df))
 }
