@@ -150,7 +150,7 @@ elisa.standard = function(standard, unit = "pg/ml") {
     theme_bw() +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     scale_x_continuous(paste("Standard concentration in", unit, "(log10 scale)"), breaks = log10(x.scale), labels = x.scale) +
-    ylab("O.D. value") +
+    ylab(ifelse(isTRUE(attr(standard, "log")), "log(OD)", "OD")) +
     facet_wrap(~ file)
   return(p)
 }
@@ -189,12 +189,12 @@ elisa.standard = function(standard, unit = "pg/ml") {
 #' }
 #'
 #' @export
-elisa.analyse = function(.df, ..., multi.regression = TRUE) {
+elisa.analyse = function(.df, ..., transform = FALSE, multi.regression = TRUE) {
   if (!isTRUE(multi.regression)) return(elisa.analyse.single(.df, ...))
   
   .df <- .df %>%
     group_by(file) %>%
-    do(result = elisa.analyse.single(., ...)) 
+    do(result = elisa.analyse.single(., transform = transform, ...)) 
   
   .data <- .df %>%
     rowwise() %>%
@@ -205,6 +205,8 @@ elisa.analyse = function(.df, ..., multi.regression = TRUE) {
     rowwise() %>%
     do(.$result$standard) %>%
     ungroup()
+  
+  if (isTRUE(transform)) attr(.standard, "log") <- TRUE
   
   return(list(standard = .standard, data = .data))
 }

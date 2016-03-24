@@ -5,18 +5,18 @@
 \alias{elisa.analyze}
 \title{Analyse the O.D. values (regression)}
 \usage{
-elisa.analyse(.df, ..., multi.regression = TRUE)
+elisa.analyse(.df, ..., transform = FALSE, multi.regression = TRUE)
 
-elisa.analyze(.df, ..., multi.regression = TRUE)
+elisa.analyze(.df, ..., transform = FALSE, multi.regression = TRUE)
 }
 \arguments{
 \item{.df}{dataframe containing at least the od and id columns (with O.D. values and sample identifiers).}
 
+\item{transform}{a logical value indicating whether O.D. values should be log10 transformed before the regression.}
+
 \item{multi.regression}{a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'elisa.load').}
 
 \item{blank}{a logical value indicating whether blank values (id = 'blank') should be substracted from all O.D. values.}
-
-\item{transform}{a logical value indicating whether O.D. values should be log10 transformed before the regression.}
 
 \item{std.key}{a character string specifying the common starting pattern of standard point ids (default = "STD").}
 
