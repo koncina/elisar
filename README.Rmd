@@ -1,7 +1,15 @@
-# ElisaR
-Eric Koncina  
+---
+title: "ElisaR"
+author: "Eric Koncina"
+output:
+  html_document:
+    keep_md: yes
+---
 
-
+```{r, echo = FALSE, warning = FALSE}
+library(knitr)
+opts_knit$set(root.dir = "./example/")
+```
 
 > ElisaR can handle Tecan Sunrise excel exports which were modified to include the plate layout and sample identifications. It will perform a 4PL regression (using the `drc` library) and return a dataframe containing the concentrations corresponding to the O.D. values.
 
@@ -33,87 +41,33 @@ devtools::install_git('https://github.com/koncina/elisar.git')
 
 ### Import the file in _R_
 
-
-```r
+```{r input}
 library(elisar)
 input <- read.tecan("od-values.xls")
 input
 ```
 
-```
-## Source: local data frame [34 x 8]
-## 
-##             file   row column    id    od description treatment medium
-##            (chr) (chr)  (chr) (chr) (dbl)       (chr)     (chr)  (chr)
-## 1  od-values.xls     G      1   M1A 0.516        M1_A         A     M1
-## 2  od-values.xls     H      1   M2A 0.231        M2_A         A     M2
-## 3  od-values.xls     G      2   M1A 0.251        M1_A         A     M1
-## 4  od-values.xls     H      2   M2A 0.180        M2_A         A     M2
-## 5  od-values.xls     G      3   M1A 0.112        M1_A         A     M1
-## 6  od-values.xls     H      3   M2A 0.092        M2_A         A     M2
-## 7  od-values.xls     G      4   M1B 0.097        M1_B         B     M1
-## 8  od-values.xls     H      4   M2B 0.067        M2_B         B     M2
-## 9  od-values.xls     G      5   M1B 0.072        M1_B         B     M1
-## 10 od-values.xls     H      5   M2B 0.064        M2_B         B     M2
-## ..           ...   ...    ...   ...   ...         ...       ...    ...
-```
-
 ### Perform the regression
 
-
-```r
+```{r analyse}
 df <- elisa.analyse(input, transform = TRUE)
-```
-
-```
-## 3 OD values are outside the standard range
-```
-
-```r
 names(df)
-```
-
-```
-## [1] "standard" "data"
 ```
 
 The `elisa.analyse()` function returns a list containing the standard curve (used by the `elisa.standard()` function which will render it) and a dataframe with the analysed values.
 **Note** that a warning is displayed when O.D. values are not within the range of standard points. These values are tagged as FALSE in the `.valid` column.
 
+```{r, echo = FALSE}
+options(dplyr.width = Inf)
+```
 
-
-
-```r
+```{r data}
 head(df$data)
 ```
 
-```
-## Source: local data frame [6 x 11]
-## 
-##            file column   row    id description treatment medium
-##           (chr)  (chr) (chr) (chr)       (chr)     (chr)  (chr)
-## 1 od-values.xls      1     G   M1A        M1_A         A     M1
-## 2 od-values.xls      1     H   M2A        M2_A         A     M2
-## 3 od-values.xls      2     G   M1A        M1_A         A     M1
-## 4 od-values.xls      2     H   M2A        M2_A         A     M2
-## 5 od-values.xls      3     G   M1A        M1_A         A     M1
-## 6 od-values.xls      3     H   M2A        M2_A         A     M2
-##   concentration concentration.sd    od .valid
-##           (dbl)            (dbl) (dbl)  (lgl)
-## 1    156.051286        20.013581 0.516   TRUE
-## 2     60.483971         9.617523 0.231   TRUE
-## 3     67.554642         9.964759 0.251   TRUE
-## 4     41.817043         8.552142 0.180   TRUE
-## 5     14.732076         5.276934 0.112   TRUE
-## 6      6.131447         3.043125 0.092   TRUE
-```
-
-
-```r
+```{r standard, warning = FALSE, message = FALSE}
 elisa.standard(df)
 ```
-
-![](README_files/figure-html/standard-1.png)
 
 ### Options for the regression
 

@@ -150,7 +150,7 @@ elisa.standard = function(standard, unit = NULL) {
     theme_bw() +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     scale_x_continuous(sprintf("Standard concentration%s (log10 scale)", ifelse(!is.null(unit), paste(" in", unit), "")), breaks = log10(x.scale), labels = x.scale) +
-    ylab(ifelse(isTRUE(attr(standard, "log")), "log(OD)", "OD")) +
+    ylab(ifelse(isTRUE(attr(standard, "log")), "log10(OD)", "OD")) +
     facet_wrap(~ file)
   return(p)
 }
