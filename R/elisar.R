@@ -51,7 +51,7 @@ is.readxl.bugging = function(.df) {
 #' \dontrun{
 #' library(elisar)
 #'
-#' # Import file
+#' # Import file(s)
 #' df <- read.tecan("od_measure.xls")
 #' df <- read.tecan(c("od_measure1.xls", "od_measure2.xls"))
 #' }
@@ -131,7 +131,7 @@ read.tecan.single = function(input, checksum = "md5") {
 #' library(ggplot2)
 #'
 #' # Import file
-#' e <- elisa.load("od_measure.xls")
+#' e <- read.tecan("od_measure.xls")
 #' e <- elisa.analyze(e)
 #' elisa.standard(e)
 #' # OR supplying the dataframe
@@ -183,7 +183,7 @@ elisa.standard = function(standard, unit = "pg/ml") {
 #' library(ggplot2)
 #'
 #' # Import file
-#' e <- elisa.load("od_measure.xls")
+#' e <- read.tecan("od_measure.xls")
 #' e <- elisa.analyze(e)
 #' e <- elisa.analyze(e, blank = TRUE, transform = TRUE)
 #' }
@@ -244,19 +244,19 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
   # Performing the 4PL regression (with drc::drm)
   std.4PL <- drc::drm(y ~ log10(x), data = std, fct = drc::LL.4(), logDose = 10)
   
-  # Extend the std dataframe and add points to draw the predicted curve
-  std <- data.frame(log.x = seq(min(log10(std$x)), max(log10(std$x)), length.out = 100)) %>%
-    mutate(x = 10^log.x, y = predict(std.4PL, .), type = "curve", file = .file) %>%
-    bind_rows(std)  %>%
-    select(file, type, x, y)
-  
   # We use the inverse model (ED) to predict the concentration corresponding to the O.D values
   .df <- .df %>%
     bind_cols(tidy(suppressWarnings(drc::ED(std.4PL, .$y, type = "absolute", display = F)))) %>%
     rename(concentration = Estimate, concentration.sd = Std..Error) %>%
     mutate(concentration = ifelse(is.na(concentration) & y < summary(std.4PL)[[3]][[2]], 0, concentration)) %>%
-    mutate(.valid = ifelse(od <= max(std$y), TRUE, FALSE)) %>%
+    mutate(.valid = ifelse(od <= max(std$od), TRUE, FALSE)) %>%
     select(file, column, row, id, everything(), -.rownames, -y, -od, od, -.valid, .valid)
+  
+  # Extend the std dataframe and add points to draw the predicted curve
+  std <- data.frame(log.x = seq(min(log10(std$x)), max(log10(std$x)), length.out = 100)) %>%
+    mutate(x = 10^log.x, y = predict(std.4PL, .), type = "curve", file = .file) %>%
+    bind_rows(std) %>%
+    select(file, type, x, y)
   
   # Applying the dilution factor if present
   if (!is.null(dilution.column)) {

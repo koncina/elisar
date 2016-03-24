@@ -39,7 +39,7 @@ library(elisar)
 library(ggplot2)
 
 # Import file
-e <- elisa.load("od_measure.xls")
+e <- read.tecan("od_measure.xls")
 e <- elisa.analyze(e)
 e <- elisa.analyze(e, blank = TRUE, transform = TRUE)
 }
