@@ -119,9 +119,9 @@ read.tecan.single = function(input, checksum = "md5") {
 #'
 #' Requires ggplot2
 #'
-#' @param standard list object (or dataframe) returned by the elisa.analyze function
+#' @param standard list object (or dataframe) returned by the elisa.analyse function
 #'
-#' @param concentration unit of the standard points (defaults to pg/ml)
+#' @param concentration unit of the standard points (defaults to NULL)
 #'
 #' @details A complete example on how to perform an analysis can be found at \url{http://eric.koncina.eu/r/elisar}.
 #'
@@ -139,7 +139,7 @@ read.tecan.single = function(input, checksum = "md5") {
 #' }
 #'
 #' @export
-elisa.standard = function(standard, unit = "pg/ml") {
+elisa.standard = function(standard, unit = NULL) {
   require(ggplot2)
   if (!is.data.frame(standard) && is.list(standard) && is.data.frame(standard$standard)) standard <- standard$standard
   data <- mutate(standard, file = paste("File", standard$file))
@@ -149,7 +149,7 @@ elisa.standard = function(standard, unit = "pg/ml") {
     geom_point(data = filter(standard, type == "point"), size = 4, shape = 20) +
     theme_bw() +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    scale_x_continuous(paste("Standard concentration in", unit, "(log10 scale)"), breaks = log10(x.scale), labels = x.scale) +
+    scale_x_continuous(sprintf("Standard concentration%s (log10 scale)", ifelse(!is.null(unit), paste(" in", unit), "")), breaks = log10(x.scale), labels = x.scale) +
     ylab(ifelse(isTRUE(attr(standard, "log")), "log(OD)", "OD")) +
     facet_wrap(~ file)
   return(p)

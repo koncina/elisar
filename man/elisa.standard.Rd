@@ -4,12 +4,12 @@
 \alias{elisa.standard}
 \title{Draws the standard curve of the elisa analysis}
 \usage{
-elisa.standard(standard, unit = "pg/ml")
+elisa.standard(standard, unit = NULL)
 }
 \arguments{
-\item{standard}{list object (or dataframe) returned by the elisa.analyze function}
+\item{standard}{list object (or dataframe) returned by the elisa.analyse function}
 
-\item{concentration}{unit of the standard points (defaults to pg/ml)}
+\item{concentration}{unit of the standard points (defaults to NULL)}
 }
 \description{
 Requires ggplot2
