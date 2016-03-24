@@ -70,11 +70,11 @@ read.tecan = function(input, checksum = "md5") {
 # read.tecan.single will load a single input file
 read.tecan.single = function(input, checksum = "md5") {
   # Function is expecting a Magellan xls with two additional sheets containing the plate layout and the sample IDs
-
+  
   # Checking the extension
   ext <- gsub(".*\\.([[:alnum:]]+)$", "\\1", input)
   if (!ext %in% c("xls", "xlsx")) stop("Wrong input file format! (expecting an xls or xlsx Excel file)")
-
+  
   # Checking the checksum argument:
   algo <- c("md5", "sha1", "crc32", "sha256", "sha512")
   if (!checksum  %in% c(algo)) stop("Unknown checksum algorithm...")
@@ -217,7 +217,7 @@ elisa.analyze <- elisa.analyse
 # For each subset (file) it will call the elisa.analyse.single function unless multi.regression is set to FALSE
 elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution.column = NULL, std.key = "STD") {
   if (!"id" %in% colnames(.df)) stop("Missing mandatory column 'id'")
-
+  
   # Adjusting the dataframe (od can be log-transformed, blank substracted or fixed for a Tecan bug)
   .df <- .df %>%
     filter(tolower(id) != "empty") %>%
@@ -225,7 +225,7 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
     mutate_if(is.true = tecan, y = ifelse(y > 1000, y/1000, y)) %>% # Tecan generates excel sheets with wrong values (locale bug?)
     mutate_if(is.true = blank, y = y - mean(y[tolower(id) == "blank"], na.rm = TRUE)) %>%
     mutate_if(is.true = transform, y = log10(y))
-
+  
   # Creating a dataframe containing the standard curve points
   
   # We should only have a single file except if multi.regression is FALSE
@@ -238,12 +238,12 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
     mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
     mutate(log.x = log10(x)) %>%
     filter(!is.na(y), x > 0)
-
+  
   if (nrow(std) < 4) stop("Not enough standard points to perform the regression...")
-
+  
   # Performing the 4PL regression (with drc::drm)
   std.4PL <- drc::drm(y ~ log10(x), data = std, fct = drc::LL.4(), logDose = 10)
-
+  
   # Extend the std dataframe and add points to draw the predicted curve
   std <- data.frame(log.x = seq(min(log10(std$x)), max(log10(std$x)), length.out = 100)) %>%
     mutate(x = 10^log.x, y = predict(std.4PL, .), type = "curve", file = .file) %>%
@@ -255,17 +255,23 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
     bind_cols(tidy(suppressWarnings(drc::ED(std.4PL, .$y, type = "absolute", display = F)))) %>%
     rename(concentration = Estimate, concentration.sd = Std..Error) %>%
     mutate(concentration = ifelse(is.na(concentration) & y < summary(std.4PL)[[3]][[2]], 0, concentration)) %>%
-    select(file, column, row, id, everything(), -.rownames, -y, -od, od)
+    mutate(.valid = ifelse(od <= max(std$y), TRUE, FALSE)) %>%
+    select(file, column, row, id, everything(), -.rownames, -y, -od, od, -.valid, .valid)
   
-    # Applying the dilution factor if present
+  # Applying the dilution factor if present
   if (!is.null(dilution.column)) {
     if (!dilution.column %in% colnames(.df)) stop("Could not find specified dilution column!")
     .df <- .df %>%
       mutate_(.dilution = dilution.column) %>%
       mutate(.dilution = ifelse(is.na(.dilution), 1, .dilution),
-                concentration = .dilution * concentration,
-                concentration.sd = .dilution * concentration.sd) %>%
-                select(-.dilution)
+             concentration = .dilution * concentration,
+             concentration.sd = .dilution * concentration.sd) %>%
+      select(-.dilution)
   }
+  
+  # Displaying warning if OD is outside standard range
+  if (!all(.df$.valid)) message(sprintf("%d OD value%s outside the standard range",
+                                        s <- sum(!.df$.valid, na.rm = TRUE), ifelse(s > 1, "s are", " is")))
+  
   return(list(standard = std, data = .df))
 }
