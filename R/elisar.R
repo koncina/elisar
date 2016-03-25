@@ -190,7 +190,7 @@ elisa.standard = function(standard, unit = NULL) {
 #'
 #' @export
 elisa.analyse = function(.df, ..., transform = FALSE, multi.regression = TRUE) {
-  if (!isTRUE(multi.regression)) return(elisa.analyse.single(.df, ...))
+  if (!isTRUE(multi.regression)) return(elisa.analyse.single(.df, transform = transform, ...))
   
   .df <- .df %>%
     group_by(file) %>%
