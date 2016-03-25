@@ -171,7 +171,7 @@ elisa.standard = function(standard, unit = NULL) {
 #'
 #' @param tecan a logical value indicating whether bad Tecan O.D. values (>1000) should be fixed.
 #' 
-#' @param multi.regression a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'elisa.load').
+#' @param multi.regression a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.tecan').
 #'
 #' @return A list object containing the standard curve and the modified input dataframe to include the calculated concentrations.
 #'

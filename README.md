@@ -1,5 +1,4 @@
 # ElisaR
-Eric Koncina  
 
 
 
