@@ -2,6 +2,23 @@
 #' @import tidyr
 #' @import readxl
 
+getFSDataframeID <- function(.i, .input) {
+  # Ugly workaround for the issue: https://github.com/hadley/readxl/issues/156
+  # We need to check whether and how many empty lines are skipped
+  .df <- read_excel(.input, sheet = .i, col_names = FALSE)
+  .er <- rowSums(is.na(.df)) == ncol(.df)
+  if (any(.er[1:10])) {
+    # Empty rows were present: no issue 156 (or altered issue 156) and setting skip to 18 - missing empty rows
+    # (we should have 4 empty lines). This might stop working if somebody altered the headers!
+    # Should be removed once issues 156 and 157 are solved!
+    skip <- 18 - (4 - sum(.er[1:10]))
+  } else {
+    # Empty rows were not present: this is issue 156 and setting skip to 14
+    skip <- 14
+  }
+  return(read_excel(.input, sheet = .i, skip = skip))
+}
+
 getFSDataframe <- function(.i, .input) {
   .df <- tryCatch({ read_excel(.input, col_names = FALSE, sheet = .i)}
                   , error = function(e) {
@@ -10,6 +27,14 @@ getFSDataframe <- function(.i, .input) {
                   }
   )
   if (is.null(.df)) return(NULL)
+  
+  # There is an annoying issue in readxl: https://github.com/hadley/readxl/issues/156
+  # Sometimes (after copy-pasting in excel/calc but I was not able to reproduce the initiation of such a different excel sheet),
+  # these lines remain at their right position!
+  # To homogenize both possibilities we will remove empty lines (we do not care about NA only rows)
+  # This should allow elisar to continue working once this issue will be fixed.
+  .df <- .df[rowSums(is.na(.df)) != ncol(.df),]
+  
   if (all(.df[6, 2:13] == 1:12) & all(.df[7:14,1] == LETTERS[1:8])) {
     # We detected the plate
     # Let us extract the raw data:
@@ -69,7 +94,7 @@ read.fluostar.single <- function(input, checksum = "md5", verbose = FALSE) {
   } else {
     .df <- full_join(l[[.id]], .df, by = c("row", "column"))
     
-    .id <- tryCatch({ read_excel(input, sheet = .id, skip = 14)}
+    .id <- tryCatch({ getFSDataframeID(.id, input)}
                     , error = function(e) {
                       if (isTRUE(verbose)) message(e)
                       return(NULL)
