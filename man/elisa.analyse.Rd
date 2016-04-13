@@ -14,7 +14,7 @@ elisa.analyze(.df, ..., transform = FALSE, multi.regression = TRUE)
 
 \item{transform}{a logical value indicating whether O.D. values should be log10 transformed before the regression.}
 
-\item{multi.regression}{a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'elisa.load').}
+\item{multi.regression}{a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.tecan').}
 
 \item{blank}{a logical value indicating whether blank values (id = 'blank') should be substracted from all O.D. values.}
 
