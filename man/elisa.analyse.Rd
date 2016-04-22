@@ -14,7 +14,9 @@ elisa.analyze(.df, ..., transform = FALSE, multi.regression = TRUE)
 
 \item{transform}{a logical value indicating whether O.D. values should be log10 transformed before the regression.}
 
-\item{multi.regression}{a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.tecan').}
+\item{multi.regression}{a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.plate').}
+
+\item{od}{a character string specifying the column containing the od values (default = "value").}
 
 \item{blank}{a logical value indicating whether blank values (id = 'blank') should be substracted from all O.D. values.}
 
@@ -39,7 +41,7 @@ library(elisar)
 library(ggplot2)
 
 # Import file
-e <- read.tecan("od_measure.xls")
+e <- read.plate("od_measure.xls")
 e <- elisa.analyze(e)
 e <- elisa.analyze(e, blank = TRUE, transform = TRUE)
 }

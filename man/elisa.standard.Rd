@@ -23,7 +23,7 @@ library(elisar)
 library(ggplot2)
 
 # Import file
-e <- read.tecan("od_measure.xls")
+e <- read.plate("od_measure.xls")
 e <- elisa.analyze(e)
 elisa.standard(e)
 # OR supplying the dataframe

@@ -10,111 +10,6 @@ mutate_if <- function(.data, is.true = TRUE, ...) {
   else return(.data)
 }
 
-fix.dataframe = function(.df, text = FALSE) {
-  # Fixing the conversion of excel integers into string values generating trailing zeros (1 -> 1.000000)
-  # .df was returned from try: checking if it is a data.frame
-  if (!is.data.frame(.df)) stop("Couldn't find data in excel sheet")
-  # Column names are fixed with readr::parse_number
-  names(.df)[-1] <- parse_number(names(.df)[-1])
-  names(.df)[names(.df) == '<>'] <- 'row'
-  # If text is TRUE, we need to correct all converted values within the dataframe
-  # We could use readr::parse_number but the regex approach might be safer as it will only change
-  # string values ending with a dot followed by 6 zero characters.
-  if (isTRUE(text)) .df <- tbl_df(as.data.frame(sub("\\.0{6}$", "", as.matrix(.df)), stringsAsFactors = FALSE))
-  return(.df)
-}
-
-# Reading xls files with readxl might fail importing some text cells
-# which would be replaced by "0.00" values...
-is.readxl.bugging = function(.df) {
-  check = function(x) {
-    if ("0.00" %in% x) return(TRUE)
-    return(FALSE)
-  }
-  b <- .df %>% summarise_each(funs(check)) %>% rowSums(.)
-  if (b > 0) return(TRUE)
-  return(FALSE)
-}
-
-#' Import the OD measures from the Tecan sunrise excel sheet
-#'
-#' Reads excel files exported from Tecan Sunrise and modified according to the documentation.
-#'
-#' @param input vector containing the path(s) to the input file(s)
-#' 
-#' @param checksum a character string specifying the algorithm to calculate the data checksum (defaults to "md5"). checksum can be one of c("md5", "sha1", "crc32", "sha256", "sha512").
-#'                  The checksum is stored in the attributes.
-#'
-#' @details Example on how to prepare the Tecan excel sheet to be imported can be found at \url{http://eric.koncina.eu/r/elisar}.
-#'
-#' @examples
-#' \dontrun{
-#' library(elisar)
-#'
-#' # Import file(s)
-#' df <- read.tecan("od_measure.xls")
-#' df <- read.tecan(c("od_measure1.xls", "od_measure2.xls"))
-#' }
-#'
-#' @export
-read.tecan = function(input, checksum = "md5") {
-  names(input) <- basename(input)
-  l <- lapply(input, read.tecan.single, checksum = checksum)
-  cs <- unlist(lapply(l, function(x){attributes(x)[checksum][[1]]}))
-  # Switching from do.call to dplyr (thank to A. Ginolhac)
-  .df <- l %>% bind_rows(.id = "file")
-  attr(.df, checksum) <- cs
-  return(.df)
-}
-
-# read.tecan.single will load a single input file
-read.tecan.single = function(input, checksum = "md5") {
-  # Function is expecting a Magellan xls with two additional sheets containing the plate layout and the sample IDs
-  
-  # Checking the extension
-  ext <- gsub(".*\\.([[:alnum:]]+)$", "\\1", input)
-  if (!ext %in% c("xls", "xlsx")) stop("Wrong input file format! (expecting an xls or xlsx Excel file)")
-  
-  # Checking the checksum argument:
-  algo <- c("md5", "sha1", "crc32", "sha256", "sha512")
-  if (!checksum  %in% c(algo)) stop("Unknown checksum algorithm...")
-  
-  data <- fix.dataframe(try(read_excel(input, sheet = 1)[1:8, 1:13])) %>%
-    mutate_each(funs(as.numeric), -row) # Necessary if someone added some text outside the [1:8, 1:13] area
-  data.checksum <- digest(data, algo = checksum)
-  layout <- fix.dataframe(try(read_excel(input, sheet = 2)[1:8, 1:13]), text = TRUE)
-  # Layout and id can reside on two different sheets (preferred)
-  # We are checking whether a third sheet exists
-  id <- tryCatch(read_excel(input, sheet = 3), error = function(e) return(NULL))
-  if (is.null(id)) {
-    # id table is not present on the third sheet
-    # Trying to locate the id table on the second sheet:
-    id <- read_excel(input, sheet = 2, skip = 9, col_names = F)
-    na.row <- apply(id, 1, function(x) all(is.na(x)))
-    id <- read_excel(input, sheet = 2, skip = 8 + which(!na.row)[1])
-  }
-  
-  # Readxl inaccurately imports empty columns (after an insert/remove cycle?)
-  # We are excluding empty column names as dplyr will stop working
-  id <- id[, colnames(id) != ""]
-  # Alternative: remove completely empty columns:
-  # http://stackoverflow.com/questions/2643939/remove-columns-from-dataframe-where-all-values-are-na
-  # id <- id[, colSums(is.na(id)) < nrow(id)]
-  
-  if (!"id" %in% colnames(id)) stop("Missing column 'id'")
-  # Fixing the number to string conversion (a readxl 'strict' behaviour)
-  id$id <- sub("\\.0{6}$", "", id$id)
-  data <- gather(data, key = column, value = od,  -row)
-  layout  <- gather(layout, key = column, value = id,  -row)
-  data <- full_join(layout, data, by = c("row", "column"))
-  data <- full_join(data, id, by = c("id")) %>%
-    filter(tolower(id) != "empty") %>%
-    select(row, column, id, od, everything())
-  attr(data, checksum) <- data.checksum
-  if (ext == "xls" && is.readxl.bugging(data)) message("Detected suspicious text values during import. Consider converting xls to xlsx!")
-  return(data)
-}
-
 #' Draws the standard curve of the elisa analysis
 #'
 #' Requires ggplot2
@@ -131,7 +26,7 @@ read.tecan.single = function(input, checksum = "md5") {
 #' library(ggplot2)
 #'
 #' # Import file
-#' e <- read.tecan("od_measure.xls")
+#' e <- read.plate("od_measure.xls")
 #' e <- elisa.analyze(e)
 #' elisa.standard(e)
 #' # OR supplying the dataframe
@@ -161,6 +56,8 @@ elisa.standard = function(standard, unit = NULL) {
 #'
 #' @param .df dataframe containing at least the od and id columns (with O.D. values and sample identifiers).
 #'
+#' @param od a character string specifying the column containing the od values (default = "value").
+#'
 #' @param blank a logical value indicating whether blank values (id = 'blank') should be substracted from all O.D. values.
 #'
 #' @param transform a logical value indicating whether O.D. values should be log10 transformed before the regression.
@@ -171,7 +68,7 @@ elisa.standard = function(standard, unit = NULL) {
 #'
 #' @param tecan a logical value indicating whether bad Tecan O.D. values (>1000) should be fixed.
 #' 
-#' @param multi.regression a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.tecan').
+#' @param multi.regression a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.plate').
 #'
 #' @return A list object containing the standard curve and the modified input dataframe to include the calculated concentrations.
 #'
@@ -183,7 +80,7 @@ elisa.standard = function(standard, unit = NULL) {
 #' library(ggplot2)
 #'
 #' # Import file
-#' e <- read.tecan("od_measure.xls")
+#' e <- read.plate("od_measure.xls")
 #' e <- elisa.analyze(e)
 #' e <- elisa.analyze(e, blank = TRUE, transform = TRUE)
 #' }
@@ -217,12 +114,13 @@ elisa.analyze <- elisa.analyse
 
 # elisa.analyse is able to handle a dataframe containing the data from multiple files.
 # For each subset (file) it will call the elisa.analyse.single function unless multi.regression is set to FALSE
-elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution.column = NULL, std.key = "STD") {
+elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution.column = NULL, std.key = "STD", od = "value") {
   if (!"id" %in% colnames(.df)) stop("Missing mandatory column 'id'")
   
   # Adjusting the dataframe (od can be log-transformed, blank substracted or fixed for a Tecan bug)
   .df <- .df %>%
     filter(tolower(id) != "empty") %>%
+    rename_(od = od) %>%
     mutate(y = od) %>% # y will be our "response" variable (od)
     mutate_if(is.true = tecan, y = ifelse(y > 1000, y/1000, y)) %>% # Tecan generates excel sheets with wrong values (locale bug?)
     mutate_if(is.true = blank, y = y - mean(y[tolower(id) == "blank"], na.rm = TRUE)) %>%
