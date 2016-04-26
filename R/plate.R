@@ -44,7 +44,7 @@ find.plate <- function(.i, .input) {
             # If we still raise a warning, then something is wrong!
             stop(paste("Could not handle the sheet", .i))
           })
-          
+          .id <- tbl_df(as.data.frame(sub("\\.0{6}$", "", as.matrix(.id)), stringsAsFactors = FALSE))
           # Trying to read extended ID table
           .id.ext <- tryCatch({ read_excel(.input, sheet = .i, skip = row + 8)}
                               , error = function(e) {
@@ -59,7 +59,6 @@ find.plate <- function(.i, .input) {
               .id <- full_join(.id, .id.ext, by = c("id"))
             }
           }
-          .id <- tbl_df(as.data.frame(sub("\\.0{6}$", "", as.matrix(.id)), stringsAsFactors = FALSE))
           attr(.id, "what") <- "id"
           attr(.id, "pos") <- c(row, col)
           return(.id)
@@ -93,11 +92,10 @@ read.plate.single <- function(input, layout = NULL, checksum = "md5") {
   data.checksum <- digest(.df, algo = checksum)
   
   .id <- which(grepl("^id$", content))
-  
   if (!is.null(layout)) {
     if (!file.exists(layout)) stop("Bad layout argument")
     # Overriding the layout
-    if (.id != 0) {
+    if (length(.id) != 0) {
       message(sprintf("Overriding detected layout in %s", input))
       l[[.id]] <- NULL
     }
