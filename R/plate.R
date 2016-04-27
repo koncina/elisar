@@ -82,30 +82,44 @@ read.plate.single <- function(input, layout = NA, checksum = "md5") {
   sheet.names <- excel_sheets(input)
   l <- lapply(sheet.names, find.plate, input)
   content <- lapply(l, attr, "what") %>% unlist()
+  
   .df <- l[which(grepl("^data$", content))] %>%
     bind_rows(.id = "sheet") %>%
     # I hope that I'm not introducing a bug here...
     mutate(sheet = sheet.names[which(grepl("^data$", content))][as.numeric(sheet)])
   
-  if (length(names(.df)) != 4) stop("Unexpected number of columns: check your input file")
-  
   data.checksum <- digest(.df, algo = checksum)
   
   .id <- which(grepl("^id$", content))
   if (!is.na(layout)) {
-    if (!file.exists(layout)) stop("Bad layout argument")
-    # Overriding the layout
-    if (length(.id) != 0) {
-      message(sprintf("Overriding detected layout in %s", input))
-      l[[.id]] <- NULL
+    
+    if (is.character(layout) && file.exists(layout)) {
+      message(sprintf("Using external layout file %s in %s", basename(layout), basename(input)))
+      # Setting or overriding by layout file (must contain a single ID sheet)
+      if (length(.id) != 0) {
+        # Layout was already detected but layout argument overrides autodetection
+        message(sprintf("Overriding detected layout in %s", input))
+        l[.id] <- NULL
+      }
+      layout.sheetnames <- excel_sheets(layout)
+      layout.l <- lapply(layout.sheetnames, find.plate, layout)
+      layout.content <- lapply(layout.l, attr, "what") %>% unlist()
+      l <- append(l, layout.l[which(grepl("^id$", layout.content))]) # Removing all elements which are not detected as possible IDs
+      # Computing content and .id again for further processing
+      content <- lapply(l, attr, "what") %>% unlist()
+      .id <- which(grepl("^id$", content))
+    } else if (layout %in% sheet.names) {
+      # Overriding by sheet name
+      message(sprintf("Forcing layout to sheet %s in %s", layout, basename(input)))
+      .id <- which(grepl(paste0("^", layout, "$"), sheet.names))
+    } else if (is.numeric(layout) && layout %in% 1:length(sheet.names)) {
+      # Overriding by sheet index
+      message(sprintf("Forcing layout to sheet %s in %s", layout, basename(input)))
+      .id <- layout
+    } else {
+      # The layout argument cannot be used...
+      stop("Bad layout argument")
     }
-    layout.sheetnames <- excel_sheets(layout)
-    layout.l <- lapply(layout.sheetnames, find.plate, layout)
-    layout.content <- lapply(layout.l, attr, "what") %>% unlist()
-    l <- append(l, layout.l[which(grepl("^id$", layout.content))]) # Removing all elements which are not detected as possible IDs
-    # Computing content and .id again for further processing
-    content <- lapply(l, attr, "what") %>% unlist()
-    .id <- which(grepl("^id$", content))
   }
   # We should obtain a single "id" datasheet:
   
@@ -114,11 +128,17 @@ read.plate.single <- function(input, layout = NA, checksum = "md5") {
   } else if (length(.id) == 0) {
     message("I detected no layout sheet... skipping")
   } else {
-    .df <- full_join(l[[.id]], .df, by = c("row", "column"))
+    if (nrow(.df) > 0) {
+      if (.id %in% which(grepl("^data$", content))) warning("Layout sheet was detected as a sheet with measures... This will lead to unexpected results!")
+      .df <- full_join(l[[.id]], .df, by = c("row", "column"))
+    } else {
+      message("I detected no sheet with measures... skipping")
+      .df <- l[[.id]]
+    }
   }
   
   # this will remove ids set to "empty" or NA
-  .df <- .df %>% filter(tolower(id) != "empty")
+  if ("id" %in% names(.df)) .df <- .df %>% filter(tolower(id) != "empty")
   
   attr(.df, checksum) <- data.checksum
   if (ext == "xls" && is.readxl.bugging(.df)) message("This xls file might have generated incorrect text values. Consider converting xls to xlsx!")
