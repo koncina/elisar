@@ -56,6 +56,7 @@ find.plate <- function(.i, .input) {
             if (! "id" %in% names(.id.ext)) {
               message("Could not join ID table: missing id column")
             } else {
+              .id.ext <- .id.ext[rowSums(is.na(.id.ext)) != ncol(.id.ext),]
               .id <- full_join(.id, .id.ext, by = c("id"))
             }
           }
@@ -131,14 +132,15 @@ read.plate.single <- function(input, layout = NA, checksum = "md5") {
     if (nrow(.df) > 0) {
       if (.id %in% which(grepl("^data$", content))) warning("Layout sheet was detected as a sheet with measures... This will lead to unexpected results!")
       .df <- full_join(l[[.id]], .df, by = c("row", "column"))
+      # this will remove ids set to "empty" or NA
+      if ("id" %in% names(.df)) .df <- .df %>% filter(tolower(id) != "empty")
     } else {
       message("I detected no sheet with measures... skipping")
       .df <- l[[.id]]
     }
   }
   
-  # this will remove ids set to "empty" or NA
-  if ("id" %in% names(.df)) .df <- .df %>% filter(tolower(id) != "empty")
+
   
   attr(.df, checksum) <- data.checksum
   if (ext == "xls" && is.readxl.bugging(.df)) message("This xls file might have generated incorrect text values. Consider converting xls to xlsx!")
