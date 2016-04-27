@@ -70,7 +70,7 @@ find.plate <- function(.i, .input) {
   return(NULL)
 }
 
-read.plate.single <- function(input, layout = NULL, checksum = "md5") {
+read.plate.single <- function(input, layout = NA, checksum = "md5") {
   # Checking the extension
   ext <- gsub(".*\\.([[:alnum:]]+)$", "\\1", input)
   if (!ext %in% c("xls", "xlsx")) stop("Wrong input file format! (expecting an xls or xlsx Excel file)")
@@ -92,7 +92,7 @@ read.plate.single <- function(input, layout = NULL, checksum = "md5") {
   data.checksum <- digest(.df, algo = checksum)
   
   .id <- which(grepl("^id$", content))
-  if (!is.null(layout)) {
+  if (!is.na(layout)) {
     if (!file.exists(layout)) stop("Bad layout argument")
     # Overriding the layout
     if (length(.id) != 0) {
@@ -125,13 +125,17 @@ read.plate.single <- function(input, layout = NULL, checksum = "md5") {
   return(.df)
 }
 
+read.plate.single.caller <- function(i, input, layout = NA, checksum = "md5") {
+  read.plate.single(input = input[i], layout = layout[i], checksum = checksum)
+}
+
 #' Import the OD/luminescence/fluorescence measures from plate reader exported excel sheets (like Fluostar Optima, or Tecan Sunrise)
 #'
 #' Reads excel files exported from the MARS software (\url{http://www.bmglabtech.com/en/products/software/mars-data-analysis/}) or Tecan Magellan (\url{http://lifesciences.tecan.com/products/software/magellan_data_analysis_software}) and modified to include the plate layout (see documentation).
 #'
 #' @param input vector containing the path(s) to the input file(s)
 #' 
-#' @param layout If NULL, layout sheets are auto-detected for each input file. If a path to a layout file is supplied, a global override (for the complete input vector) is performed.
+#' @param layout If NA, layout sheets are auto-detected in each input file. Setting layout with paths to layout files overrides the autodetection. The vector must be of same size as input or equal to 1 (overrides all input elements with the same layout).
 #'
 #' @param checksum a character string specifying the algorithm to calculate the data checksum (defaults to "md5"). checksum can be one of c("md5", "sha1", "crc32", "sha256", "sha512").
 #'                  The checksum is stored in the attributes.
@@ -145,13 +149,22 @@ read.plate.single <- function(input, layout = NULL, checksum = "md5") {
 #' # Import file(s)
 #' df <- read.plate("od_measure.xls")
 #' df <- read.plate(c("od_measure1.xls", "od_measure2.xls"))
+#' df <- read.plate(c("od_measure1.xls", "od_measure2.xls"), layout = c(NA, "layout2.xls"))
 #' }
 #'
 #' @export
-read.plate = function(input, layout = NULL, checksum = "md5") {
+read.plate = function(input, layout = NA, checksum = "md5") {
   input <- unique(normalizePath(input)) # Removing potential duplicated file references
   names(input) <- basename(input)
-  l <- lapply(input, read.plate.single, layout = layout, checksum = checksum)
+  # Using method from the following code to pass multiple arguments with lapply (input and layout pairs)
+  # http://stackoverflow.com/questions/9950144/access-lapply-index-names-inside-fun
+  
+  if (length(input) != length(layout) && length(layout) > 1) {
+    stop("layout argument should have a length of 1 or equal to input!")
+  }
+  if (length(input) > 1) layout <-  rep(layout, length(input))
+  l <- lapply(seq_along(input), read.plate.single.caller, input = input, layout = layout, checksum = checksum)
+  names(l) <- basename(input)
   cs <- unlist(lapply(l, function(x){attributes(x)[checksum][[1]]}))
   .df <- l %>% bind_rows(.id = "file")
   attr(.df, checksum) <- cs
