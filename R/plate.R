@@ -27,7 +27,8 @@ find.plate <- function(.i, .input) {
   maxcol <- ncol(.df) - 12
   for(col in 1:maxcol) {
     for(row in 1:maxrow) {
-      if (isTRUE(all(.df[row, 1:12 + col] == 1:12)) & isTRUE(all(.df[1:8 + row, col] == LETTERS[1:8]))) {
+      # Works also with xls files generating int -> float -> character conversion
+      if (isTRUE(all(sub("\\.0{6}$", "", .df[row, 1:12 + col]) == 1:12)) & isTRUE(all(.df[1:8 + row, col] == LETTERS[1:8]))) {
         .df <- tryCatch({
           setNames(.df[1:8 + row, 0:12 + col], c("row", 1:12)) %>%
             mutate_each(funs(as.numeric), -row) %>%
