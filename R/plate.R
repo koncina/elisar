@@ -54,6 +54,20 @@ find.plate <- function(.i, .input) {
                               }
           )
           if (is.data.frame(.id.ext)) {
+            ### Readxl bug workaround ###
+            # It happens that readxl returns a dataframe without skipping empty rows (NA)
+            # In that case we obtain a dataframe with all columns named NA
+            # This should not happen according to https://github.com/hadley/readxl#features
+            if (all(is.na(names(.id.ext)))) {
+              message("readxl returned only NA as column names: This is a buggy behaviour!")
+              message("Trying a workaround")
+              na.row <- rowSums(is.na(.id.ext)) == ncol(.id.ext)
+              na.row <- na.row[1:max(which(grepl(FALSE, na.row)))]
+              na.row <- max(which(grepl(TRUE, na.row)))
+              .id.ext <- read_excel(.input, sheet = .i, skip = row + 9 + na.row) # Adding 1 for the header (8 + 1)
+              print(.id.ext)
+            }
+            ### End of bug workaround ###
             if (! "id" %in% names(.id.ext)) {
               message("Could not join ID table: missing id column")
             } else {
