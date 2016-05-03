@@ -185,7 +185,7 @@ df %>%
   theme_bw()
 ```
 
-![](README_files/figure-html/unnamed-chunk-3-1.png)
+![](README_files/figure-html/standard-1.png)
 
 ### Options for the regression
 

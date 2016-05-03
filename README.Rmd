@@ -66,13 +66,13 @@ head(df)
 
 The `elisa.standard()` function extracts the standard points from the dataframe (converting the dose values encoded in the id column to numbers)
 
-```{r standard, warning = FALSE, message = FALSE}
+```{r, warning = FALSE, message = FALSE}
 elisa.standard(df)
 ```
 
 The `elisa.standard()` output can easily be integrated in `ggplot()` to render the regression curve (using `elisar::stat_4pl()` to draw the `drc::drm()` 4PL regression model).
 
-```{r, warning = FALSE}
+```{r standard, warning = FALSE}
 library(dplyr, warn.conflicts = FALSE)
 library(ggplot2)
 library(scales)
