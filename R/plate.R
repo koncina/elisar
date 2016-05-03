@@ -59,13 +59,11 @@ find.plate <- function(.i, .input) {
             # In that case we obtain a dataframe with all columns named NA
             # This should not happen according to https://github.com/hadley/readxl#features
             if (all(is.na(names(.id.ext)))) {
-              message("readxl returned only NA as column names: This is a buggy behaviour!")
-              message("Trying a workaround")
+              message("readxl returned a dataframe without column names (NA): Trying a workaround")
               na.row <- rowSums(is.na(.id.ext)) == ncol(.id.ext)
               na.row <- na.row[1:max(which(grepl(FALSE, na.row)))]
               na.row <- max(which(grepl(TRUE, na.row)))
-              .id.ext <- read_excel(.input, sheet = .i, skip = row + 9 + na.row) # Adding 1 for the header (8 + 1)
-              print(.id.ext)
+              .id.ext <- read_excel(.input, sheet = .i, skip = row + 9 + na.row) # Adding 1 for the header (8 + 1 + na.row)
             }
             ### End of bug workaround ###
             if (! "id" %in% names(.id.ext)) {
