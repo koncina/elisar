@@ -23,12 +23,12 @@ devtools::install_git('https://github.com/koncina/elisar.git')
 ### Prepare the Excel files
 
 1. Export Tecan sunrise results as MS Excel `.xls` files.
-2. Open the file (an example is shown in the screenshots below), duplicate the sheet and optionally rename it (e.g. `id`). The layout sheet **must be placed after** the original sheet.
+2. Open the file (an example is shown in the screenshots below), duplicate the sheet and optionally rename it (e.g. `id`).
 3. On the duplicated sheet replace the O.D. values by unique identifiers for each sample and standard.
-  - Unused wells can be specified by `empty` (case insensitive)
-  - The blank value is specified by `blank` (case insensitive)
+  - Unused wells can be specified by the keyword `empty` (case insensitive)
+  - The blank value is specified by the keyword `blank` (case insensitive)
   - The standard values are constructed with a common leading `std.key` id (defaults to `STD` but can be adjusted in the `elisa.analyse()` function) merged to a trailing concentration value. For example: 250, 500 and 1000 pg/ml standard points would be encoded as STD250, STD500 and STD1000 (see wells in rows A-G and columns 11 to 12 in the second screenshot below).
-4. It is possible to extend the identifications by placing a second table either below the layout or on a third sheet. The table should contain headers and requires the mandatory column `id` which should list all IDs reported in the layout. One can add as much columns as required to fully describe the data.
+4. It is possible to extend the identifications by placing a second table below the layout. The table should contain headers and requires the mandatory column `id` which should list all IDs reported in the layout. One can add as much columns as required to fully describe the data.
 
 #### Screenshots
 
@@ -42,18 +42,18 @@ devtools::install_git('https://github.com/koncina/elisar.git')
 
 ```{r input}
 library(elisar)
-input <- read.tecan("od-values.xls")
+input <- read.plate("od-values.xls")
 input
 ```
 
 ### Perform the regression
 
 ```{r analyse}
-df <- elisa.analyse(input, transform = TRUE)
-names(df)
+df <- elisa.analyse(input)
+df
 ```
 
-The `elisa.analyse()` function returns a list containing the standard curve (used by the `elisa.standard()` function which will render it) and a dataframe with the analysed values.
+The `elisa.analyse()` function performs a 4 parameter logistic regression (using `drc::drm()`) and returns a dataframe with the calculated concentration values.
 **Note** that a warning is displayed when O.D. values are not within the range of standard points. These values are tagged as FALSE in the `.valid` column.
 
 ```{r, echo = FALSE}
@@ -61,18 +61,32 @@ options(dplyr.width = Inf)
 ```
 
 ```{r data}
-head(df$data)
+head(df)
 ```
+
+The `elisa.standard()` function extracts the standard points from the dataframe (converting the dose values encoded in the id column to numbers)
 
 ```{r standard, warning = FALSE, message = FALSE}
 elisa.standard(df)
 ```
 
+The `elisa.standard()` output can easily be integrated in `ggplot()` to render the regression curve (using `elisar::stat_4pl()` to draw the `drc::drm()` 4PL regression model).
+
+```{r, warning = FALSE}
+library(dplyr, warn.conflicts = FALSE)
+library(ggplot2)
+library(scales)
+df %>%
+  elisa.standard() %>%
+  ggplot(aes(x = x, y = od)) +
+  scale_x_log10() +
+  annotation_logticks(sides = "b") +
+  geom_point() +
+  stat_4pl(color = "red") +
+  xlab("Concentration in pg/ml") +
+  theme_bw()
+```
+
 ### Options for the regression
 
 Some options of the `elisa.analyse()` can be adjusted. Refer to the help page to list them (`?elisa.analyse`).
-
-## Known issues
-
-During the testing phase using MS Excel 97-2003 files (*xls* extension), `readxl::read_excel()` sometimes imported cells containing text as "0.00" text values. The `read.tecan()` function should detect and correct wrongly imported cells. As `readxl` users report other [issues](https://github.com/hadley/readxl/issues) when dealing with Excel 97-2003 files, it is recommended to convert the Tecan Sunrise Excel files to the MS Excel 2007-2013 XML format (*xlsx* extension) after adding the layout and identification informations.
-

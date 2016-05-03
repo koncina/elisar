@@ -10,45 +10,33 @@ mutate_if <- function(.data, is.true = TRUE, ...) {
   else return(.data)
 }
 
-#' Draws the standard curve of the elisa analysis
-#'
-#' Requires ggplot2
-#'
-#' @param standard list object (or dataframe) returned by the elisa.analyse function
-#'
-#' @param concentration unit of the standard points (defaults to NULL)
-#'
-#' @details A complete example on how to perform an analysis can be found at \url{http://eric.koncina.eu/r/elisar}.
-#'
-#' @examples
-#' \dontrun{
-#' library(elisar)
-#' library(ggplot2)
-#'
-#' # Import file
-#' e <- read.plate("od_measure.xls")
-#' e <- elisa.analyze(e)
-#' elisa.standard(e)
-#' # OR supplying the dataframe
-#' elisa.standard(e$standard)
-#' }
-#'
-#' @export
-elisa.standard = function(standard, unit = NULL) {
-  require(ggplot2)
-  if (!is.data.frame(standard) && is.list(standard) && is.data.frame(standard$standard)) standard <- standard$standard
-  data <- mutate(standard, file = paste("File", standard$file))
-  x.scale <- filter(standard, type == "point")$x
-  p <- ggplot(standard, aes(x = log10(x), y = y)) +
-    geom_line(data = filter(standard, type == "curve"), size = 1) +
-    geom_point(data = filter(standard, type == "point"), size = 4, shape = 20) +
-    theme_bw() +
-    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
-    scale_x_continuous(sprintf("Standard concentration%s (log10 scale)", ifelse(!is.null(unit), paste(" in", unit), "")), breaks = log10(x.scale), labels = x.scale) +
-    ylab(ifelse(isTRUE(attr(standard, "log")), "log10(OD)", "OD")) +
-    facet_wrap(~ file)
-  return(p)
+# Adding a "glance" method for drc (see broom)
+glance.drc <- function(.m) {
+  .row <- NULL
+  .row <- rbind(.row, .m$coefficients)
+  return(as.data.frame(.row))
 }
+
+#' @export
+print.elisa_df <- function(.df) {
+  .model <- attr(.df, "model")
+  cat("elisa.analyse() concentration values obtained from the OD with the following 4PL regression(s):\n\n")
+  print(as.data.frame(.model))
+  cat("\n")
+  print(tbl_df(.df))
+}
+
+#' @export
+elisa.standard <- function(.df, std.key = "STD") {
+  std <- .df %>%
+    group_by(file) %>%
+    filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
+    mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
+    filter(!is.na(od), x > 0) %>%
+    select(file, column, row, id, x, od, concentration)
+  return(std)
+}
+
 
 #' Analyse the O.D. values (regression)
 #'
@@ -87,25 +75,33 @@ elisa.standard = function(standard, unit = NULL) {
 #'
 #' @export
 elisa.analyse = function(.df, ..., transform = FALSE, multi.regression = TRUE) {
-  if (!isTRUE(multi.regression)) return(elisa.analyse.single(.df, transform = transform, ...))
+  if (!isTRUE(multi.regression)) {
+    .df <- .df %>%
+      elisa.analyse.single(., transform = transform, ...)
+    .data <- .df$data
+    .model <- .df$model %>%
+      glance()
+  } else {
+    .df <- .df %>%
+      group_by(file) %>%
+      do(result = elisa.analyse.single(., transform = transform, ...))
+    
+    .data <- .df %>%
+      rowwise() %>%
+      do(.$result$data) %>%
+      ungroup()
+    
+    .model <- .df %>%
+      ungroup() %>%
+      rowwise() %>%
+      do(bind_cols(data.frame(file = .$file, stringsAsFactors = FALSE), glance(.$result$model)))
+  }
   
-  .df <- .df %>%
-    group_by(file) %>%
-    do(result = elisa.analyse.single(., transform = transform, ...)) 
+  if (isTRUE(transform)) attr(.data, "transform") <- TRUE
+  attr(.data, "model") <- .model
+  class(.data) <- unique(c("elisa_df", class(.data)))
   
-  .data <- .df %>%
-    rowwise() %>%
-    do(.$result$data) %>%
-    ungroup()
-  
-  .standard <- .df %>%
-    rowwise() %>%
-    do(.$result$standard) %>%
-    ungroup()
-  
-  if (isTRUE(transform)) attr(.standard, "log") <- TRUE
-  
-  return(list(standard = .standard, data = .data))
+  return(.data)
 }
 
 #' @rdname elisa.analyse
@@ -142,7 +138,7 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
   if (nrow(std) < 4) stop("Not enough standard points to perform the regression...")
   
   # Performing the 4PL regression (with drc::drm)
-  std.4PL <- drc::drm(y ~ log10(x), data = std, fct = drc::LL.4(), logDose = 10)
+  std.4PL <- drc::drm(y ~ log10(x), data = std, fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")), logDose = 10)
   
   # We use the inverse model (ED) to predict the concentration corresponding to the O.D values
   .df <- .df %>%
@@ -151,12 +147,6 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
     mutate(concentration = ifelse(is.na(concentration) & y < summary(std.4PL)[[3]][[2]], 0, concentration)) %>%
     mutate(.valid = ifelse(od <= max(std$od), TRUE, FALSE)) %>%
     select(file, column, row, id, everything(), -.rownames, -y, -od, od, -.valid, .valid)
-  
-  # Extend the std dataframe and add points to draw the predicted curve
-  std <- data.frame(log.x = seq(min(log10(std$x)), max(log10(std$x)), length.out = 100)) %>%
-    mutate(x = 10^log.x, y = predict(std.4PL, .), type = "curve", file = .file) %>%
-    bind_rows(std) %>%
-    select(file, type, x, y)
   
   # Applying the dilution factor if present
   if (!is.null(dilution.column)) {
@@ -172,6 +162,5 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
   # Displaying warning if OD is outside standard range
   if (!all(.df$.valid)) message(sprintf("%d OD value%s outside the standard range",
                                         s <- sum(!.df$.valid, na.rm = TRUE), ifelse(s > 1, "s are", " is")))
-  
-  return(list(standard = std, data = .df))
+  return(list(model = std.4PL, data = .df))
 }
