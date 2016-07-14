@@ -2,6 +2,7 @@
 #' @import readr
 #' @import readxl
 #' @import dplyr
+#' @importFrom purrr map_lgl
 #' @importFrom tidyr gather
 #' @import broom
 
@@ -139,7 +140,7 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
   .file <- paste(unique(.df$file), collapse = ", ")
   
   std <- .df %>%
-    mutate(type = "point", file = .file) %>%
+    mutate(file = .file) %>%
     filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
     mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
     mutate(log.x = log10(x)) %>%
@@ -155,7 +156,7 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
     bind_cols(tidy(suppressWarnings(drc::ED(std.4PL, .$y, type = "absolute", display = F)))) %>%
     rename(concentration = Estimate, concentration.sd = Std..Error) %>%
     mutate(concentration = ifelse(is.na(concentration) & y < summary(std.4PL)[[3]][[2]], 0, concentration)) %>%
-    mutate(.valid = ifelse(od <= max(std$od), TRUE, FALSE)) %>%
+    mutate(.valid = ifelse(od <= max(std$od) & !is.na(od), TRUE, FALSE)) %>%
     select(file, column, row, id, everything(), -.rownames, -y, -od, od, -.valid, .valid)
   
   # Applying the dilution factor if present
@@ -170,7 +171,14 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
   }
   
   # Displaying warning if OD is outside standard range
-  if (!all(.df$.valid)) message(sprintf("%d OD value%s outside the standard range",
-                                        s <- sum(!.df$.valid, na.rm = TRUE), ifelse(s > 1, "s are", " is")))
+  if (!.df %>% filter(!grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>% select(.valid) %>% map_lgl(all)) 
+    message(sprintf("%d OD value%s outside the standard range",
+                    s <- sum(!.df$.valid, na.rm = TRUE), ifelse(s > 1, "s are", " is")))
+  
+  # Displaying warning if a standard point is missing (NA as a consequence of a tecan "Overflow")
+  if (!.df %>% filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>% select(.valid) %>% map_lgl(all))
+    message(sprintf("%d standard OD value%s invalid (NA or overflow)",
+                    s <- sum(!.df$.valid, na.rm = TRUE), ifelse(s > 1, "s are", " is")))
+  
   return(list(model = std.4PL, data = .df))
 }

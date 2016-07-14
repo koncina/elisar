@@ -31,6 +31,7 @@ find.plate <- function(.i, .input) {
       if (isTRUE(all(sub("\\.0{6}$", "", .df[row, 1:12 + col]) == 1:12)) & isTRUE(all(.df[1:8 + row, col] == LETTERS[1:8]))) {
         .df <- tryCatch({
           setNames(.df[1:8 + row, 0:12 + col], c("row", 1:12)) %>%
+            mutate_each(funs(replace(.,  . == "Overflow", NA))) %>% # Removing overflow values
             mutate_each(funs(as.numeric), -row) %>%
             gather_(key = "column", value = "value", c(1:12)) %>%
             `attr<-`("what", "data") %>%

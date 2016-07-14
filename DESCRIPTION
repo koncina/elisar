@@ -10,6 +10,7 @@ Description: Perform a 4PL regression of Elisa O.D. measures. Loads Tecan
 Imports:
     drc,
     dplyr,
+    purrr,
     tidyr,
     digest,
     broom,
