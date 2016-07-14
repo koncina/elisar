@@ -10,9 +10,11 @@ Description: Perform a 4PL regression of Elisa O.D. measures. Loads Tecan
 Imports:
     drc,
     dplyr,
+    tidyr,
+    digest,
+    broom,
+    readr,
     readxl,
-    readr
-Suggests:
     ggplot2
 URL: http://eric.koncina.eu/r/elisar
 License: LGPL-3

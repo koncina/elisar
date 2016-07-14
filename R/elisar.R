@@ -11,21 +11,31 @@ mutate_if <- function(.data, is.true = TRUE, ...) {
 }
 
 # Adding a "glance" method for drc (see broom)
-glance.drc <- function(.m) {
+glance.drc <- function(x, ...) {
   .row <- NULL
-  .row <- rbind(.row, .m$coefficients)
+  .row <- rbind(.row, x$coefficients)
   return(as.data.frame(.row))
 }
 
 #' @export
-print.elisa_df <- function(.df) {
-  .model <- attr(.df, "model")
+print.elisa_df <- function(x, ...) {
+  .model <- attr(x, "model")
   cat("elisa.analyse() concentration values obtained from the OD with the following 4PL regression(s):\n\n")
   print(as.data.frame(.model))
   cat("\n")
-  print(tbl_df(.df))
+  print(tbl_df(x))
 }
 
+#' Extract the standard points
+#'
+#' Filter out the standard point values according the standard point identification pattern (default = "STD").
+#' 
+#' @param .df dataframe containing at least the od and id columns (with O.D. values and sample identifiers).
+#' 
+#' @param std.key a character string specifying the common starting pattern of standard point ids (default = "STD").
+#' 
+#' @return A dataframe containing the standard.
+#'
 #' @export
 elisa.standard <- function(.df, std.key = "STD") {
   std <- .df %>%
@@ -58,7 +68,7 @@ elisa.standard <- function(.df, std.key = "STD") {
 #' 
 #' @param multi.regression a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.plate').
 #'
-#' @return A list object containing the standard curve and the modified input dataframe to include the calculated concentrations.
+#' @return A dataframe including the calculated concentrations.
 #'
 #' @details A complete example on how to perform an analysis can be found at \url{http://eric.koncina.eu/r/elisar}.
 #'
@@ -74,17 +84,17 @@ elisa.standard <- function(.df, std.key = "STD") {
 #' }
 #'
 #' @export
-elisa.analyse = function(.df, ..., transform = FALSE, multi.regression = TRUE) {
+elisa.analyse = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution.column = NULL, std.key = "STD", od = "value", multi.regression = TRUE) {
   if (!isTRUE(multi.regression)) {
     .df <- .df %>%
-      elisa.analyse.single(., transform = transform, ...)
+      elisa.analyse.single(., blank = blank, transform = transform, tecan = tecan, dilution.column = dilution.column, std.key = std.key, od = od)
     .data <- .df$data
     .model <- .df$model %>%
       glance()
   } else {
     .df <- .df %>%
       group_by(file) %>%
-      do(result = elisa.analyse.single(., transform = transform, ...))
+      do(result = elisa.analyse.single(., blank = blank, transform = transform, tecan = tecan, dilution.column = dilution.column, std.key = std.key, od = od))
     
     .data <- .df %>%
       rowwise() %>%

@@ -5,29 +5,33 @@
 \alias{elisa.analyze}
 \title{Analyse the O.D. values (regression)}
 \usage{
-elisa.analyse(.df, ..., transform = FALSE, multi.regression = TRUE)
+elisa.analyse(.df, blank = FALSE, transform = FALSE, tecan = FALSE,
+  dilution.column = NULL, std.key = "STD", od = "value",
+  multi.regression = TRUE)
 
-elisa.analyze(.df, ..., transform = FALSE, multi.regression = TRUE)
+elisa.analyze(.df, blank = FALSE, transform = FALSE, tecan = FALSE,
+  dilution.column = NULL, std.key = "STD", od = "value",
+  multi.regression = TRUE)
 }
 \arguments{
 \item{.df}{dataframe containing at least the od and id columns (with O.D. values and sample identifiers).}
 
-\item{transform}{a logical value indicating whether O.D. values should be log10 transformed before the regression.}
-
-\item{multi.regression}{a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.plate').}
-
-\item{od}{a character string specifying the column containing the od values (default = "value").}
-
 \item{blank}{a logical value indicating whether blank values (id = 'blank') should be substracted from all O.D. values.}
 
-\item{std.key}{a character string specifying the common starting pattern of standard point ids (default = "STD").}
+\item{transform}{a logical value indicating whether O.D. values should be log10 transformed before the regression.}
+
+\item{tecan}{a logical value indicating whether bad Tecan O.D. values (>1000) should be fixed.}
 
 \item{dilution.column}{NULL or character string specifying a column to be used for the sample dilution factors (default = NULL).}
 
-\item{tecan}{a logical value indicating whether bad Tecan O.D. values (>1000) should be fixed.}
+\item{std.key}{a character string specifying the common starting pattern of standard point ids (default = "STD").}
+
+\item{od}{a character string specifying the column containing the od values (default = "value").}
+
+\item{multi.regression}{a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.plate').}
 }
 \value{
-A list object containing the standard curve and the modified input dataframe to include the calculated concentrations.
+A dataframe including the calculated concentrations.
 }
 \description{
 Performs a 4-PL regression of the standard values and converts the O.D. into concentration values.
