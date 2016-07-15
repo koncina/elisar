@@ -1,5 +1,15 @@
 # R for travis: see documentation at https://docs.travis-ci.com/user/languages/r
 
 language: R
+os:
+  - linux
+  - osx
 sudo: false
 cache: packages
+warnings_are_errors: true
+
+r_github_packages:
+  - jimhester/covr
+
+after_success:
+  - Rscript -e 'library(covr);codecov()'
