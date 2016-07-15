@@ -5,6 +5,8 @@ output:
     keep_md: yes
 ---
 
+[![Travis-CI Build Status](https://travis-ci.org/koncina/elisar.svg?branch=master)](https://travis-ci.org/koncina/elisar)
+
 ```{r, echo = FALSE, warning = FALSE}
 library(knitr)
 opts_knit$set(root.dir = "./example/")
