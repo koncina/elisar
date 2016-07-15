@@ -1,6 +1,8 @@
 # ElisaR
 
 [![Travis-CI Build Status](https://travis-ci.org/koncina/elisar.svg?branch=master)](https://travis-ci.org/koncina/elisar)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/koncina/elisar?branch=master&svg=true)](https://ci.appveyor.com/project/koncina/elisar)
+
 
 > ElisaR can handle Tecan Sunrise excel exports which were modified to include the plate layout and sample identifications. It will perform a 4PL regression (using the `drc` library) and return a dataframe containing the concentrations corresponding to the O.D. values.
 
@@ -50,7 +52,7 @@ input
 ## Source: local data frame [34 x 9]
 ## 
 ##             file   row column    id description treatment medium
-##            (chr) (chr)  (chr) (chr)       (chr)     (chr)  (chr)
+##            <chr> <chr>  <chr> <chr>       <chr>     <chr>  <chr>
 ## 1  od-values.xls     G      1   M1A        M1_A         A     M1
 ## 2  od-values.xls     H      1   M2A        M2_A         A     M2
 ## 3  od-values.xls     G      2   M1A        M1_A         A     M1
@@ -62,7 +64,7 @@ input
 ## 9  od-values.xls     G      5   M1B        M1_B         B     M1
 ## 10 od-values.xls     H      5   M2B        M2_B         B     M2
 ## ..           ...   ...    ...   ...         ...       ...    ...
-## Variables not shown: sheet (chr), value (dbl)
+## Variables not shown: sheet <chr>, value <dbl>.
 ```
 
 ### Perform the regression
@@ -91,7 +93,7 @@ df
 ## Source: local data frame [34 x 12]
 ## 
 ##             file column   row    id description treatment medium
-##            (chr)  (chr) (chr) (chr)       (chr)     (chr)  (chr)
+##            <chr>  <chr> <chr> <chr>       <chr>     <chr>  <chr>
 ## 1  od-values.xls      1     G   M1A        M1_A         A     M1
 ## 2  od-values.xls      1     H   M2A        M2_A         A     M2
 ## 3  od-values.xls      2     G   M1A        M1_A         A     M1
@@ -103,8 +105,8 @@ df
 ## 9  od-values.xls      5     G   M1B        M1_B         B     M1
 ## 10 od-values.xls      5     H   M2B        M2_B         B     M2
 ## ..           ...    ...   ...   ...         ...       ...    ...
-## Variables not shown: sheet (chr), concentration (dbl), concentration.sd
-##   (dbl), od (dbl), .valid (lgl)
+## Variables not shown: sheet <chr>, concentration <dbl>, concentration.sd
+##   <dbl>, od <dbl>, .valid <lgl>.
 ```
 
 The `elisa.analyse()` function performs a 4 parameter logistic regression (using `drc::drm()`) and returns a dataframe with the calculated concentration values.
@@ -121,7 +123,7 @@ head(df)
 ## Source: local data frame [6 x 12]
 ## 
 ##            file column   row    id description treatment medium
-##           (chr)  (chr) (chr) (chr)       (chr)     (chr)  (chr)
+##           <chr>  <chr> <chr> <chr>       <chr>     <chr>  <chr>
 ## 1 od-values.xls      1     G   M1A        M1_A         A     M1
 ## 2 od-values.xls      1     H   M2A        M2_A         A     M2
 ## 3 od-values.xls      2     G   M1A        M1_A         A     M1
@@ -129,7 +131,7 @@ head(df)
 ## 5 od-values.xls      3     G   M1A        M1_A         A     M1
 ## 6 od-values.xls      3     H   M2A        M2_A         A     M2
 ##              sheet concentration concentration.sd    od .valid
-##              (chr)         (dbl)            (dbl) (dbl)  (lgl)
+##              <chr>         <dbl>            <dbl> <dbl>  <lgl>
 ## 1 Magellan Sheet 1    159.998395         9.880593 0.516   TRUE
 ## 2 Magellan Sheet 1     62.798726         6.192559 0.231   TRUE
 ## 3 Magellan Sheet 1     70.308342         6.329615 0.251   TRUE
@@ -185,7 +187,7 @@ df %>%
   theme_bw()
 ```
 
-![](README_files/figure-html/standard-1.png)
+![](README_files/figure-html/standard-1.png)<!-- -->
 
 ### Options for the regression
 

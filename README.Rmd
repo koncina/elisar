@@ -6,6 +6,7 @@ output:
 ---
 
 [![Travis-CI Build Status](https://travis-ci.org/koncina/elisar.svg?branch=master)](https://travis-ci.org/koncina/elisar)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/koncina/elisar?branch=master&svg=true)](https://ci.appveyor.com/project/koncina/elisar)
 
 ```{r, echo = FALSE, warning = FALSE}
 library(knitr)
