@@ -35,16 +35,20 @@ print.elisa_df <- function(x, ...) {
 #' 
 #' @param std.key a character string specifying the common starting pattern of standard point ids (default = "STD").
 #' 
+#' @param od a character string specifying the column containing the od values (default = "value").
+#' 
 #' @return A dataframe containing the standard.
 #'
 #' @export
-elisa.standard <- function(.df, std.key = "STD") {
+elisa.standard <- function(.df, std.key = "STD", od = "value", .keep = NULL) {
+  if (!is.null(.keep) && !.keep %in% colnames(.df)) stop("Cannot keep a column that does not exist")
+  .keep <- c("file", "column", "row", "id", "x", od, .keep)
   std <- .df %>%
     group_by(file) %>%
     filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
     mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
-    filter(!is.na(od), x > 0) %>%
-    select(file, column, row, id, x, od, concentration)
+    filter(x > 0) %>%
+    select(one_of(.keep))
   return(std)
 }
 
@@ -57,13 +61,15 @@ elisa.standard <- function(.df, std.key = "STD") {
 #'
 #' @param od a character string specifying the column containing the od values (default = "value").
 #'
+#' @param concentration a character string specifying the column that will contain the calculated concentration values (default = "concentration").
+#'
 #' @param blank a logical value indicating whether blank values (id = 'blank') should be substracted from all O.D. values.
 #'
 #' @param transform a logical value indicating whether O.D. values should be log10 transformed before the regression.
 #'
 #' @param std.key a character string specifying the common starting pattern of standard point ids (default = "STD").
 #' 
-#' @param dilution.column NULL or character string specifying a column to be used for the sample dilution factors (default = NULL).
+#' @param dilution NULL or character string specifying a column to be used for the sample dilution factors (default = NULL).
 #'
 #' @param tecan a logical value indicating whether bad Tecan O.D. values (>1000) should be fixed.
 #' 
@@ -85,17 +91,17 @@ elisa.standard <- function(.df, std.key = "STD") {
 #' }
 #'
 #' @export
-elisa.analyse = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution.column = NULL, std.key = "STD", od = "value", multi.regression = TRUE) {
+elisa.analyse = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution = NULL, std.key = "STD", od = "value", concentration = "concentration", multi.regression = TRUE) {
   if (!isTRUE(multi.regression)) {
     .df <- .df %>%
-      elisa.analyse.single(., blank = blank, transform = transform, tecan = tecan, dilution.column = dilution.column, std.key = std.key, od = od)
+      elisa.analyse.single(., blank = blank, transform = transform, tecan = tecan, dilution = dilution, std.key = std.key, od = od, concentration = concentration)
     .data <- .df$data
     .model <- .df$model %>%
       glance()
   } else {
     .df <- .df %>%
       group_by(file) %>%
-      do(result = elisa.analyse.single(., blank = blank, transform = transform, tecan = tecan, dilution.column = dilution.column, std.key = std.key, od = od))
+      do(result = elisa.analyse.single(., blank = blank, transform = transform, tecan = tecan, dilution = dilution, std.key = std.key, od = od, concentration = concentration))
     
     .data <- .df %>%
       rowwise() %>%
@@ -121,17 +127,17 @@ elisa.analyze <- elisa.analyse
 
 # elisa.analyse is able to handle a dataframe containing the data from multiple files.
 # For each subset (file) it will call the elisa.analyse.single function unless multi.regression is set to FALSE
-elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution.column = NULL, std.key = "STD", od = "value") {
+elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution = NULL, std.key = "STD", od = "value", concentration = "concentration") {
   if (!"id" %in% colnames(.df)) stop("Missing mandatory column 'id'")
+  if (any(c(".y", ".c", ".c.sd", ".dilution") %in% colnames(.df))) stop("The dataframe should not contain column names .y, .dilution, .c or .c.sd")
   
   # Adjusting the dataframe (od can be log-transformed, blank substracted or fixed for a Tecan bug)
   .df <- .df %>%
     filter(tolower(id) != "empty") %>%
-    rename_(od = od) %>%
-    mutate(y = od) %>% # y will be our "response" variable (od)
-    mutate_if(is.true = tecan, y = ifelse(y > 1000, y/1000, y)) %>% # Tecan generates excel sheets with wrong values (locale bug?)
-    mutate_if(is.true = blank, y = y - mean(y[tolower(id) == "blank"], na.rm = TRUE)) %>%
-    mutate_if(is.true = transform, y = log10(y))
+    mutate_(.y = od) %>% # y will be our "response" variable (od)
+    mutate_if(is.true = tecan, .y = ifelse(.y > 1000, y/1000, .y)) %>% # Tecan generates excel sheets with wrong values (locale bug?)
+    mutate_if(is.true = blank, .y = .y - mean(.y[tolower(id) == "blank"], na.rm = TRUE)) %>%
+    mutate_if(is.true = transform, .y = log10(.y))
   
   # Creating a dataframe containing the standard curve points
   
@@ -144,31 +150,36 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
     filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
     mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
     mutate(log.x = log10(x)) %>%
-    filter(!is.na(y), x > 0)
+    filter(!is.na(.y), x > 0)
   
   if (nrow(std) < 4) stop("Not enough standard points to perform the regression...")
   
   # Performing the 4PL regression (with drc::drm)
-  std.4PL <- drc::drm(y ~ log10(x), data = std, fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")), logDose = 10)
+  std.4PL <- drc::drm(.y ~ log10(x), data = std, fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")), logDose = 10)
   
   # We use the inverse model (ED) to predict the concentration corresponding to the O.D values
   .df <- .df %>%
-    bind_cols(tidy(suppressWarnings(drc::ED(std.4PL, .$y, type = "absolute", display = F)))) %>%
-    rename(concentration = Estimate, concentration.sd = Std..Error) %>%
-    mutate(concentration = ifelse(is.na(concentration) & y < summary(std.4PL)[[3]][[2]], 0, concentration)) %>%
-    mutate(.valid = ifelse(od <= max(std$od) & !is.na(od), TRUE, FALSE)) %>%
-    select(file, column, row, id, everything(), -.rownames, -y, -od, od, -.valid, .valid)
+    bind_cols(tidy(suppressWarnings(drc::ED(std.4PL, .$.y, type = "absolute", display = F)))) %>%
+    rename(.c = Estimate, .c.sd = Std..Error) %>%
+    mutate(.c = ifelse(is.na(.c) & .y < summary(std.4PL)[[3]][[2]], 0, .c)) %>%
+    mutate(.valid = ifelse(.y <= max(std$.y) & !is.na(.y), TRUE, FALSE)) %>%
+    select(file, column, row, id, everything(), -.rownames, -.y, -.valid, .valid)
   
   # Applying the dilution factor if present
-  if (!is.null(dilution.column)) {
-    if (!dilution.column %in% colnames(.df)) stop("Could not find specified dilution column!")
+  if (!is.null(dilution)) {
+    if (!dilution %in% colnames(.df)) stop("Could not find specified dilution column!")
     .df <- .df %>%
-      mutate_(.dilution = dilution.column) %>%
+      mutate_(.dilution = dilution) %>%
       mutate(.dilution = ifelse(is.na(.dilution), 1, .dilution),
-             concentration = .dilution * concentration,
-             concentration.sd = .dilution * concentration.sd) %>%
+             .c = .dilution * .c,
+             .c.sd = .dilution * .c.sd) %>%
       select(-.dilution)
   }
+  
+  # Renaming columns
+  .df <- .df %>%
+    rename_(.dots=setNames(c(".c", ".c.sd"), c(concentration, paste0(concentration, ".sd"))))
+  
   
   # Displaying warning if OD is outside standard range
   if (!.df %>% filter(!grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>% select(.valid) %>% map_lgl(all)) 

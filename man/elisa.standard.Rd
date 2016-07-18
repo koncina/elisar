@@ -4,12 +4,14 @@
 \alias{elisa.standard}
 \title{Extract the standard points}
 \usage{
-elisa.standard(.df, std.key = "STD")
+elisa.standard(.df, std.key = "STD", od = "value", .keep = NULL)
 }
 \arguments{
 \item{.df}{dataframe containing at least the od and id columns (with O.D. values and sample identifiers).}
 
 \item{std.key}{a character string specifying the common starting pattern of standard point ids (default = "STD").}
+
+\item{od}{a character string specifying the column containing the od values (default = "value").}
 }
 \value{
 A dataframe containing the standard.

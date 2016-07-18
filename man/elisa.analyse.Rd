@@ -6,12 +6,12 @@
 \title{Analyse the O.D. values (regression)}
 \usage{
 elisa.analyse(.df, blank = FALSE, transform = FALSE, tecan = FALSE,
-  dilution.column = NULL, std.key = "STD", od = "value",
-  multi.regression = TRUE)
+  dilution = NULL, std.key = "STD", od = "value",
+  concentration = "concentration", multi.regression = TRUE)
 
 elisa.analyze(.df, blank = FALSE, transform = FALSE, tecan = FALSE,
-  dilution.column = NULL, std.key = "STD", od = "value",
-  multi.regression = TRUE)
+  dilution = NULL, std.key = "STD", od = "value",
+  concentration = "concentration", multi.regression = TRUE)
 }
 \arguments{
 \item{.df}{dataframe containing at least the od and id columns (with O.D. values and sample identifiers).}
@@ -22,11 +22,13 @@ elisa.analyze(.df, blank = FALSE, transform = FALSE, tecan = FALSE,
 
 \item{tecan}{a logical value indicating whether bad Tecan O.D. values (>1000) should be fixed.}
 
-\item{dilution.column}{NULL or character string specifying a column to be used for the sample dilution factors (default = NULL).}
+\item{dilution}{NULL or character string specifying a column to be used for the sample dilution factors (default = NULL).}
 
 \item{std.key}{a character string specifying the common starting pattern of standard point ids (default = "STD").}
 
 \item{od}{a character string specifying the column containing the od values (default = "value").}
+
+\item{concentration}{a character string specifying the column that will contain the calculated concentration values (default = "concentration").}
 
 \item{multi.regression}{a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.plate').}
 }
