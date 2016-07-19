@@ -37,6 +37,8 @@ print.elisa_df <- function(x, ...) {
 #' 
 #' @param od a character string specifying the column containing the od values (default = "value").
 #' 
+#' @param .keep a vector containing the column names which should be included in the output
+#' 
 #' @return A dataframe containing the standard.
 #'
 #' @export
@@ -92,6 +94,10 @@ elisa.standard <- function(.df, std.key = "STD", od = "value", .keep = NULL) {
 #'
 #' @export
 elisa.analyse = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution = NULL, std.key = "STD", od = "value", concentration = "concentration", multi.regression = TRUE) {
+
+  if (!"id" %in% colnames(.df)) stop("Missing mandatory column 'id'")
+  if (concentration %in% colnames(.df)) stop("Concentration column already exists (try to adjust the 'concentration' argument).")
+  
   if (!isTRUE(multi.regression)) {
     .df <- .df %>%
       elisa.analyse.single(., blank = blank, transform = transform, tecan = tecan, dilution = dilution, std.key = std.key, od = od, concentration = concentration)
@@ -128,7 +134,7 @@ elisa.analyze <- elisa.analyse
 # elisa.analyse is able to handle a dataframe containing the data from multiple files.
 # For each subset (file) it will call the elisa.analyse.single function unless multi.regression is set to FALSE
 elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution = NULL, std.key = "STD", od = "value", concentration = "concentration") {
-  if (!"id" %in% colnames(.df)) stop("Missing mandatory column 'id'")
+  
   if (any(c(".y", ".c", ".c.sd", ".dilution") %in% colnames(.df))) stop("The dataframe should not contain column names .y, .dilution, .c or .c.sd")
   
   # Adjusting the dataframe (od can be log-transformed, blank substracted or fixed for a Tecan bug)
@@ -178,7 +184,7 @@ elisa.analyse.single = function(.df, blank = FALSE, transform = FALSE, tecan = F
   
   # Renaming columns
   .df <- .df %>%
-    rename_(.dots=setNames(c(".c", ".c.sd"), c(concentration, paste0(concentration, ".sd"))))
+    rename_(.dots = setNames(c(".c", ".c.sd"), c(concentration, paste0(concentration, ".sd"))))
   
   
   # Displaying warning if OD is outside standard range

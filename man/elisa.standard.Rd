@@ -12,6 +12,8 @@ elisa.standard(.df, std.key = "STD", od = "value", .keep = NULL)
 \item{std.key}{a character string specifying the common starting pattern of standard point ids (default = "STD").}
 
 \item{od}{a character string specifying the column containing the od values (default = "value").}
+
+\item{.keep}{a vector containing the column names which should be included in the output}
 }
 \value{
 A dataframe containing the standard.
