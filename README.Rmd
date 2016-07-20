@@ -7,6 +7,7 @@ output:
 
 [![Travis-CI Build Status](https://travis-ci.org/koncina/elisar.svg?branch=master)](https://travis-ci.org/koncina/elisar)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/koncina/elisar?branch=master&svg=true)](https://ci.appveyor.com/project/koncina/elisar)
+[![Coverage Status](https://img.shields.io/codecov/c/github/koncina/elisar/master.svg)](https://codecov.io/github/koncina/elisar?branch=master)
 
 ```{r, echo = FALSE, warning = FALSE}
 library(knitr)
@@ -45,7 +46,8 @@ devtools::install_git('https://github.com/koncina/elisar.git')
 
 ```{r input}
 library(elisar)
-input <- read.plate("od-values.xls")
+example <- system.file("extdata", "example_full.xls", package="elisar")
+input <- read.plate(example)
 input
 ```
 
@@ -81,15 +83,16 @@ library(ggplot2)
 library(scales)
 df %>%
   elisa.standard() %>%
-  ggplot(aes(x = x, y = od)) +
+  rename(od = value) %>%
+  ggplot(aes(x = x, y = log10(od))) +
   scale_x_log10() +
   annotation_logticks(sides = "b") +
-  geom_point() +
-  stat_4pl(color = "red") +
+  geom_point(size = 3) +
+  stat_4pl(color = "red", size = 1) +
   xlab("Concentration in pg/ml") +
   theme_bw()
 ```
 
 ### Options for the regression
 
-Some options of the `elisa.analyse()` can be adjusted. Refer to the help page to list them (`?elisa.analyse`).
+Some options of the `elisa.analyse()` function can be adjusted. Refer to the help page to list them (`?elisa.analyse`).
