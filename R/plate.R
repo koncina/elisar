@@ -107,7 +107,6 @@ read.plate.single <- function(input, layout = NA, checksum = "md5") {
   
   .id <- which(grepl("^id$", content))
   if (!is.na(layout)) {
-    
     if (is.character(layout) && file.exists(layout)) {
       message(sprintf("Using external layout file %s in %s", basename(layout), basename(input)))
       # Setting or overriding by layout file (must contain a single ID sheet)
@@ -153,8 +152,6 @@ read.plate.single <- function(input, layout = NA, checksum = "md5") {
       .df <- l[[.id]]
     }
   }
-  
-
   
   attr(.df, checksum) <- data.checksum
   if (ext == "xls" && is.readxl.bugging(.df)) message("This xls file might have generated incorrect text values. Consider converting xls to xlsx!")
