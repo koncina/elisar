@@ -14,7 +14,7 @@ test_that("Performing the 4-PL regression should return a dataframe", {
 })
 
 test_that("Printing the data.frame", {
-  expect_is(print(elisa.analyse(example.df)), "character")
+  expect_is(print(elisa.analyse(example.df)), "tbl_df")
 })
 
 test_that("Providing an invalid dataframe should generate an error", {
