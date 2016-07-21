@@ -25,6 +25,7 @@ find.plate <- function(.i, .input) {
   if (is.null(.df)) return(NULL)
   maxrow <- nrow(.df) - 8
   maxcol <- ncol(.df) - 12
+  if (maxrow < 1 | maxcol < 1) return(NULL)
   for(col in 1:maxcol) {
     for(row in 1:maxrow) {
       # Works also with xls files generating int -> float -> character conversion

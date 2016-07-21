@@ -3,6 +3,7 @@ context("Import plates (read.plate)")
 example.full <- system.file("extdata", "example_full.xls", package="elisar")
 example.layout <- system.file("extdata", "example_layout.xls", package="elisar")
 example.no.layout <- system.file("extdata", "example_no_layout.xls", package="elisar")
+example.not.working <- system.file("extdata", "datasets.xlsx", package="readxl")
 
 test_that("Reading non existing will generate an error", {
   expect_error(read.plate(c("", "nofile")))
@@ -10,6 +11,7 @@ test_that("Reading non existing will generate an error", {
 
 test_that("Reading NA or numericals will generate an error in file.exists", {
   expect_error(read.plate(c(NA, 1)))
+  expect_error(read.plate(example.not.working))
 })
 
 test_that("elisa.analyse calculates the concentrations from the OD values", {
