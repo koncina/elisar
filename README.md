@@ -2,7 +2,7 @@
 
 [![Travis-CI Build Status](https://travis-ci.org/koncina/elisar.svg?branch=master)](https://travis-ci.org/koncina/elisar)
 [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/koncina/elisar?branch=master&svg=true)](https://ci.appveyor.com/project/koncina/elisar)
-[![Coverage Status](https://img.shields.io/codecov/c/github/koncina/elisar/master.svg)](https://codecov.io/github/koncina/elisar?branch=master)
+[![codecov](https://codecov.io/gh/koncina/elisar/branch/master/graph/badge.svg)](https://codecov.io/gh/koncina/elisar)
 
 
 
