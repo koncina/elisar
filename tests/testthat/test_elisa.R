@@ -13,8 +13,8 @@ test_that("Performing the 4-PL regression should return a dataframe", {
   expect_is(elisa.analyse(example.df, dilution = "dilution"), "data.frame")
 })
 
-test_that("Printing the data.frame", {
-  expect_is(print.elisa_df(elisa.analyse(example.df)), "data.frame")
+test_that("Printing the data.frame should generate an output starting with a specific string", {
+  expect_output(print.elisa_df(elisa.analyse(example.df)), "elisa.analyse\\(\\) concentration values obtained from the OD with the following 4PL regression.*")
 })
 
 test_that("Providing an invalid dataframe should generate an error", {
