@@ -1,27 +1,67 @@
-context("analysing elisa")
+context("elisa.analyse")
 
-example.full <- system.file("extdata", "example_full.xls", package="elisar")
-example.layout <- system.file("extdata", "example_layout.xls", package="elisar")
-example.no.layout <- system.file("extdata", "example_no_layout.xls", package="elisar")
-example.df <- elisar::read.plate(c(example.full, example.no.layout), layout = c(NA, example.layout))
-
-test_that("Performing the 4-PL regression should return a dataframe", {
-  expect_is(elisa.analyse(example.df), "data.frame")
-  expect_is(elisa.analyse(example.df, transform = TRUE), "data.frame")
-  expect_is(elisa.analyse(example.df, multi.regression = FALSE), "data.frame")
-  example.df$dilution <- 2
-  expect_is(elisa.analyse(example.df, dilution = "dilution"), "data.frame")
+test_that("the lack of an 'id' column generates an error", {
+  expect_error(elisa.analyse(1), "^Missing mandatory column 'id'$")
+  expect_error(elisa.analyse(data.frame(x = 1:10)), "^Missing mandatory column 'id'$")
 })
 
-test_that("Printing the data.frame should generate an output starting with a specific string", {
-  expect_output(print.elisa_df(elisa.analyse(example.df)), "elisa.analyse\\(\\) concentration values obtained from the OD with the following 4PL regression.*")
+test_that("performing the 4-PL regression without custom arguments generates the appropriate values", {
+  read.plate("example_full.xls") %>%
+    elisa.analyse() %>%
+    summarise(od = sum(value), concentration = floor(sum(concentration))) %>%
+    as.data.frame() %>%
+    expect_equivalent(data.frame(od = 26.364, concentration = 12534))
 })
 
-test_that("Providing an invalid dataframe should generate an error", {
-  expect_error(elisa.analyse(data.frame(x = 1:10)))
+test_that("performing the 4-PL regression with a log10 transformation generates the appropriate values", {
+  .df <-  read.plate("example_full.xls") %>%
+    elisa.analyse(transform = TRUE) %>%
+    summarise(od = sum(value), concentration = floor(sum(concentration))) %>%
+    as.data.frame() %>%
+    expect_equivalent(data.frame(od = 26.364, concentration = 11692))
 })
 
-test_that("Extracting the standard curve datapoints should return a dataframe", {
-  expect_is(elisa.standard(example.df), "data.frame")
+
+
+test_that("performing a common 4-PL regression for more than one file is possible", {
+  .df <- read.plate(c("example_full.xls", "example_no_layout.xls"), layout = "example_layout.xls")
+  model <- .df %>%
+    elisa.analyse(multi.regression = FALSE) %>%
+    attr("model")
+  
+  expect_equivalent(model %>% colnames, c("Slope:(Intercept)", "Lower:(Intercept)", "Upper:(Intercept)", "ED50:(Intercept)"))
+  expect_equal(model %>% nrow , 1)
 })
 
+test_that("setting a dilution factor column works", {
+  .df <- read.plate("example_full.xls") %>% 
+    mutate(dilution = 2) %>%
+    elisa.analyse(dilution = "dilution") %>%
+    summarise(od = sum(value), concentration = floor(sum(concentration))) %>%
+    as.data.frame() %>%
+    expect_equivalent(data.frame(od = 26.364, concentration = 25068))
+})
+
+
+test_that("printing the data.frame generates an output starting with a specific character sequence", {
+  .df <- read.plate("example_full.xls") %>%
+    elisa.analyse()
+  expect_output(print.elisa_df(.df), "elisa.analyse\\(\\) concentration values obtained from the OD with the following 4PL regression.*")
+})
+
+test_that("extracting the standard curve dataframe is working", {
+  .df <- read.plate("example_full.xls") %>%
+    elisa.standard()
+  expect_equal(.df %>% colnames, c("file", "column", "row", "id", "x", "value"))
+})
+
+test_that("extracting the standard curve dataframe and keeping additional columns is working", {
+  .df <- read.plate("example_full.xls") %>%
+    elisa.standard(.keep = "sheet")
+  expect_equal(.df %>% colnames, c("file", "column", "row", "id", "x", "value", "sheet"))
+})
+
+test_that("keeping a column that does not exist generates a specific error", {
+  expect_error(read.plate("example_full.xls") %>%
+                 elisa.standard(.keep = "test"), "^Cannot keep a column that does not exist$")
+})

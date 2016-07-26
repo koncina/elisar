@@ -1,13 +1,10 @@
-context("analysing plots")
+context("plot")
 
-example.full <- system.file("extdata", "example_full.xls", package="elisar")
-example.df <- elisar::read.plate(example.full)
-
-test_that("Using the stat_4pl layer should render a plot", {
+test_that("using the stat_4pl layer renders a plot", {
   library(dplyr)
   library(ggplot2)
   library(scales)
-  example.df %>%
+  read.plate("example_full.xls") %>%
     elisa.standard() %>%
     ggplot(aes(x = x, y = value)) +
     geom_point() +
@@ -15,53 +12,28 @@ test_that("Using the stat_4pl layer should render a plot", {
   expect_is(plot.test, "ggplot")
 })
 
-test_that("Setting stat_4pl verbose option should still render a plot", {
+test_that("setting stat_4pl to verbose renders a plot and a message", {
   library(dplyr)
   library(ggplot2)
   library(scales)
-  example.df %>%
+  
+  p <- read.plate("example_full.xls") %>%
     elisa.standard() %>%
     ggplot(aes(x = x, y = value)) +
-    geom_point() +
-    stat_4pl(verbose = TRUE) -> plot.test
-  expect_is(plot.test, "ggplot")
+    geom_point()
+  
+  expect_message(p + stat_4pl(verbose = TRUE), "^Showing 4PL model details")
+  expect_is(p + stat_4pl(verbose = TRUE), "ggplot")
 })
 
-test_that("Setting stat_4pl logDose option should still render a plot", {
+test_that("setting the stat_4pl logDose option still renders a plot", {
   library(dplyr)
   library(ggplot2)
   library(scales)
-  example.df %>%
+  p <- read.plate("example_full.xls") %>%
     elisa.standard() %>%
     ggplot(aes(x = x, y = value)) +
-    geom_point() +
-    stat_4pl(logDose = 10) -> plot.test
-  expect_is(plot.test, "ggplot")
+    geom_point()
+  expect_is(p + stat_4pl(logDose = 10), "ggplot")
 })
-
-test_that("Setting stat_4pl logDose option should still render a plot", {
-  library(dplyr)
-  library(ggplot2)
-  library(scales)
-  example.df %>%
-    elisa.standard() %>%
-    ggplot(aes(x = x, y = value)) +
-    scale_x_log10() +
-    geom_point() +
-    stat_4pl() -> plot.test
-  expect_is(plot.test, "ggplot")
-})
-
-test_that("Setting stat_4pl options should still render a plot", {
-  library(dplyr)
-  library(ggplot2)
-  library(scales)
-  example.df %>%
-    elisa.standard() %>%
-    ggplot(aes(x = x, y = value)) +
-    geom_point() +
-    stat_4pl(verbose = TRUE, logDose = 10) -> plot.test
-  expect_is(plot.test, "ggplot")
-})
-
 
