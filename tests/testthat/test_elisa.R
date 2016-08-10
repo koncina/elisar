@@ -29,12 +29,12 @@ test_that("performing a common 4-PL regression for more than one file is possibl
     elisa.analyse(multi.regression = FALSE) %>%
     attr("model")
   
-  expect_equivalent(model %>% colnames, c("Slope:(Intercept)", "Lower:(Intercept)", "Upper:(Intercept)", "ED50:(Intercept)"))
+  expect_equivalent(model %>% colnames, c("file", "Slope:(Intercept)", "Lower:(Intercept)", "Upper:(Intercept)", "ED50:(Intercept)"))
   expect_equal(model %>% nrow , 1)
 })
 
 test_that("setting a dilution factor column works", {
-  .df <- read.plate("example_full.xls") %>% 
+  .df <- read.plate("example_full.xls") %>%
     mutate(dilution = 2) %>%
     elisa.analyse(dilution = "dilution") %>%
     summarise(od = sum(value), concentration = floor(sum(concentration))) %>%
@@ -52,13 +52,13 @@ test_that("printing the data.frame generates an output starting with a specific 
 test_that("extracting the standard curve dataframe is working", {
   .df <- read.plate("example_full.xls") %>%
     elisa.standard()
-  expect_equal(.df %>% colnames, c("file", "column", "row", "id", "x", "value"))
+  expect_equal(.df %>% colnames, c("column", "row", "id", "x", "value"))
 })
 
 test_that("extracting the standard curve dataframe and keeping additional columns is working", {
   .df <- read.plate("example_full.xls") %>%
-    elisa.standard(.keep = "sheet")
-  expect_equal(.df %>% colnames, c("file", "column", "row", "id", "x", "value", "sheet"))
+    elisa.standard(.keep = c("file", "sheet"))
+  expect_equal(.df %>% colnames, c("column", "row", "id", "x", "value", "file", "sheet"))
 })
 
 test_that("keeping a column that does not exist generates a specific error", {
