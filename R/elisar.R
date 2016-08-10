@@ -24,7 +24,7 @@ print.elisa_df <- function(x, ...) {
   cat("elisa.analyse() concentration values obtained from the OD with the following 4PL regression(s):\n\n")
   print(as.data.frame(.model))
   cat("\n")
-  print(tbl_df(x))
+  print(tbl_df(unclass(x)))
 }
 
 #' Extract the standard points
@@ -122,8 +122,8 @@ elisa.analyse = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, d
   
   if (isTRUE(transform)) attr(.data, "transform") <- TRUE
   attr(.data, "model") <- .model
-  class(.data) <- unique(c("elisa_df", class(.data)))
-  
+  class(.data) <- append("elisa_df", class(.data))
+
   return(.data)
 }
 
