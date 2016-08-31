@@ -56,6 +56,7 @@ print.elisa_df <- function(x, ...) {
 elisa.standard <- function(.df, std.key = "STD", od = "value", .keep = NULL) {
   if (!is.null(.keep) && !.keep %in% colnames(.df)) stop("Cannot keep a column that does not exist")
   .keep <- c("column", "row", "id", "x", od, .keep)
+  if ("file" %in% colnames(.df)) .keep <- c("file", .keep)
   std <- .df %>%
     filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
     mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
@@ -151,6 +152,7 @@ elisa.analyse = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, d
   }
   
   .df <- .df %>%
+    select(file, column, row, id, everything(), -.rownames, -.y, -.valid, .valid) %>%
     rename_(.dots = setNames(c(".c", ".c.sd"), c(concentration, paste0(concentration, ".sd"))))
   
   # Displaying warning if OD is outside standard range

@@ -52,13 +52,13 @@ test_that("printing the data.frame generates an output starting with a specific 
 test_that("extracting the standard curve dataframe is working", {
   .df <- read.plate("example_full.xls") %>%
     elisa.standard()
-  expect_equal(.df %>% colnames, c("column", "row", "id", "x", "value"))
+  expect_equal(.df %>% colnames, c("file", "column", "row", "id", "x", "value"))
 })
 
 test_that("extracting the standard curve dataframe and keeping additional columns is working", {
   .df <- read.plate("example_full.xls") %>%
-    elisa.standard(.keep = c("file", "sheet"))
-  expect_equal(.df %>% colnames, c("column", "row", "id", "x", "value", "file", "sheet"))
+    elisa.standard(.keep = "sheet")
+  expect_equal(.df %>% colnames, c("file", "column", "row", "id", "x", "value", "sheet"))
 })
 
 test_that("keeping a column that does not exist generates a specific error", {

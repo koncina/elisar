@@ -104,8 +104,6 @@ read.plate.single <- function(input, layout = NA, checksum = "md5") {
     # I hope that I'm not introducing a bug here...
     mutate(sheet = sheet.names[which(grepl("^data$", content))][as.numeric(sheet)])
   
-  if (nrow(.df) == 0 || nrow(.df) %% 96 != 0) stop("Did not detect the data...")
-  
   data.checksum <- digest(.df, algo = checksum)
   
   .id <- which(grepl("^id$", content))
