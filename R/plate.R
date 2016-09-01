@@ -2,6 +2,7 @@
 #' @import tidyr
 #' @import readxl
 #' @import digest
+#' @importFrom purrr map_int map
 
 # Reading xls files with readxl might fail importing some text cells
 # which would be replaced by "0.00" values...
@@ -193,8 +194,34 @@ read.plate = function(input, layout = NA, checksum = "md5") {
     stop(paste("Could not find the following file(s):", paste(input[which(!file.exists(input))], collapse = ", ")))
   }
   
-  input <- unique(normalizePath(input)) # Removing potential duplicated file references
-  names(input) <- basename(input)
+  # If names(input) is duplicated but not input, we will trigger an error
+  # To detect this, we convert the vector to a dataframe (maybe there is a better solution?)
+  # Using dplyr, we are able to remove any duplicates (name AND value)
+  # If a name occurs more than once we should stop!
+  
+  if (is.null(names(input))) {
+    input.name = ""
+  } else {
+    input.name = names(input)
+  }
+  
+  data.frame(name = input.name, path = input, stringsAsFactors = FALSE) %>%
+    mutate(path = normalizePath(path)) %>%
+    distinct() %>%
+    mutate(name = ifelse(name == "", basename(path), name)) %>%
+    group_by(name) %>%
+    nest() %>%
+    mutate(n = map_int(data, nrow)) -> df.input
+  
+  if (with(df.input, any(n > 1))) stop("Distinct files cannot have a common name")
+  
+  df.input %>%
+    filter(n == 1) %>%
+    select(-n) %>%
+    unnest() -> df.input
+  
+  with(df.input, setNames(path, name)) -> input
+  
   # Using method from the following code to pass multiple arguments with lapply (input and layout pairs)
   # http://stackoverflow.com/questions/9950144/access-lapply-index-names-inside-fun
   
@@ -203,7 +230,7 @@ read.plate = function(input, layout = NA, checksum = "md5") {
   }
   if (length(input) > 1) layout <-  rep(layout, length(input))
   l <- lapply(seq_along(input), read.plate.single.caller, input = input, layout = layout, checksum = checksum)
-  names(l) <- basename(input)
+  names(l) <- names(input)
   cs <- unlist(lapply(l, function(x){attributes(x)[checksum][[1]]}))
   .df <- l %>% bind_rows(.id = "file")
   attr(.df, checksum) <- cs
