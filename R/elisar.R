@@ -137,7 +137,7 @@ elisa.analyse = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, d
     select(-std, -model) %>%
     unnest() %>%
     group_by(file) %>%
-    mutate(.valid = ifelse(.y <= max(.y[grepl(paste0("^", std.key), ignore.case = TRUE, id)]) & !is.na(.y), TRUE, FALSE)) %>%
+    mutate(.valid = ifelse(.y <= max(.y[grepl(paste0("^", std.key), ignore.case = TRUE, id)], na.rm = TRUE) & !is.na(.y), TRUE, FALSE)) %>%
     ungroup -> .df
   
   # Applying the dilution factor if present
