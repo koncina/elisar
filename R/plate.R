@@ -72,6 +72,7 @@ find.plate <- function(.i, .input) {
             if (! "id" %in% names(.id.ext)) {
               message("Could not join ID table: missing id column")
             } else {
+              .id.ext <- .id.ext[, !is.na(names(.id.ext))]
               .id.ext <- .id.ext[rowSums(is.na(.id.ext)) != ncol(.id.ext),]
               .id <- full_join(.id, .id.ext, by = c("id"))
             }
