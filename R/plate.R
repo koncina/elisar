@@ -62,7 +62,7 @@ find.plate <- function(.i, .input) {
             # In that case we obtain a dataframe with all columns named NA
             # This should not happen according to https://github.com/hadley/readxl#features
             if (all(is.na(names(.id.ext))) || all(names(.id.ext) == "")) {
-              message("readxl returned a dataframe without column names (''): Trying a workaround")
+              message("readxl returned a dataframe without column names: Trying a workaround")
               .id.ext <- read_excel(.input, sheet = .i, skip = row + 8 + which(.id.ext == "id", arr.ind = TRUE)[1])
             }
             ### End of bug workaround ###

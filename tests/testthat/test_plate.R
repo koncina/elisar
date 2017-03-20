@@ -9,7 +9,7 @@ test_that("reading NA or numericals generates an error in file.exists", {
 })
 
 test_that("the workaround for a buggy supplied excel file works", {
-  expect_message(read.plate("example_full.xls"), "readxl returned a dataframe without column names \\(NA\\): Trying a workaround")
+  expect_message(read.plate("example_full.xls"), "readxl returned a dataframe without column names: Trying a workaround")
 })
 
 test_that("reading a valid excel file returns the appropriate dataframe", {
