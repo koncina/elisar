@@ -31,4 +31,3 @@ df <- read.plate(c("od_measure1.xls", "od_measure2.xls"), layout = c(NA, "layout
 }
 
 }
-

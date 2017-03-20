@@ -53,4 +53,3 @@ e <- elisa.analyze(e, blank = TRUE, transform = TRUE)
 }
 
 }
-

@@ -50,7 +50,7 @@ find.plate <- function(.i, .input) {
           })
           .id <- tbl_df(as.data.frame(sub("\\.0{6}$", "", as.matrix(.id)), stringsAsFactors = FALSE))
           # Trying to read extended ID table
-          .id.ext <- tryCatch({ read_excel(.input, sheet = .i, skip = row + 8)}
+          .id.ext <- tryCatch({read_excel(.input, sheet = .i, skip = row + 8)}
                               , error = function(e) {
                                 message("Could not find extended ID table... Ignoring")
                                 return(NULL)
@@ -61,12 +61,9 @@ find.plate <- function(.i, .input) {
             # It happens that readxl returns a dataframe without skipping empty rows (NA)
             # In that case we obtain a dataframe with all columns named NA
             # This should not happen according to https://github.com/hadley/readxl#features
-            if (all(is.na(names(.id.ext)))) {
-              message("readxl returned a dataframe without column names (NA): Trying a workaround")
-              na.row <- rowSums(is.na(.id.ext)) == ncol(.id.ext)
-              na.row <- na.row[1:max(which(grepl(FALSE, na.row)))]
-              na.row <- max(which(grepl(TRUE, na.row)))
-              .id.ext <- read_excel(.input, sheet = .i, skip = row + 9 + na.row) # Adding 1 for the header (8 + 1 + na.row)
+            if (all(is.na(names(.id.ext))) || all(names(.id.ext) == "")) {
+              message("readxl returned a dataframe without column names (''): Trying a workaround")
+              .id.ext <- read_excel(.input, sheet = .i, skip = row + 8 + which(.id.ext == "id", arr.ind = TRUE)[1])
             }
             ### End of bug workaround ###
             if (! "id" %in% names(.id.ext)) {

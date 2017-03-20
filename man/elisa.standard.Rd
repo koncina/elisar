@@ -21,4 +21,3 @@ A dataframe containing the standard.
 \description{
 Filter out the standard point values according the standard point identification pattern (default = "STD").
 }
-

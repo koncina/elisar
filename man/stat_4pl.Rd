@@ -58,4 +58,3 @@ to the paired geom/stat.}
 \description{
 stat_4pl() performs a 4 parameter logistic regression (using drc::drm) for plotting in ggplot2.
 }
-
