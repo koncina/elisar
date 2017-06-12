@@ -1,4 +1,7 @@
-#' @import tidyverse
+#' @import dplyr
+#' @import tidyr
+#' @importFrom purrr map_lgl map_int map_df map
+#' @import tibble
 #' @import readxl
 #' @import digest
 
@@ -76,7 +79,7 @@ find_id <- function(.df) {
 
 # Extract all elements (plates and id tables) from a single excel file
 
-extract_elements <- function(path) {
+find_elements <- function(path) {
   path %>%
     excel_sheets() %>%
     set_names(glue::glue("{seq_along(.)}_{.}")) %>%
@@ -99,7 +102,7 @@ join_if_id <- function(.x, .y, .by) {
 read_plate <- function(path) {
   associated_id <- quo(element == "id" & lag(element) == "plate")
   path %>%
-    map_df(extract_elements) %>%
+    map_df(find_elements) %>%
     gather(element, where, plate, id) %>%
     unnest(where) %>%
     arrange(path, sheet_pos, row) %>%
@@ -118,25 +121,27 @@ read_plate <- function(path) {
            plate = map2(id, plate, join_if_id, c("id" = "value")),
            id = map_int(id, length),
            id = map_lgl(id, as.logical),
-           format = map_int(plate, nrow)) %>%
-    rename(data = plate)
+           format = map_int(plate, nrow),
+           path = basename(path)) %>%
+    select(file = path, sheet_pos, sheet_name, element_id, format, id, data = plate)
 }
 
 #' @export
 join_id <- function(.data) {
   n_id <- .data %>%
-    group_by(path, format) %>%
+    group_by(file, format) %>%
     filter(id) %>%
     summarise(n = n()) %>%
-    select(path, n) %>%
+    select(file, n) %>%
     deframe()
   
   if (any(n_id > 1)) stop("Cannot join multiple identifiers...")
   
   .data %>%
-    group_by(path, format) %>%
+    group_by(file, format) %>%
     mutate(data_id = replace(list(NULL), length(data[id]) > 0, data[id])) %>%
     filter(!id) %>%
     mutate(data = map2(data_id, data, join_if_id, c("row", "col"))) %>%
-    select(-data_id, -id)
+    select(-data_id, -id) %>%
+    ungroup()
 }
