@@ -2,77 +2,141 @@
 #' @import readxl
 #' @import digest
 
-# finds a 6, 12, 24 or 96 well plate in .df at the coordinates of "A"
-find_plate <- function(.df, col, row, plate_sizes = c(6, 12, 24, 96)) {
-  tibble(plate_size = c(6, 12, 24, 96), n_cols = c(3, 4, 6, 12), n_rows = c(2, 3, 4, 8)) %>%
-    filter(plate_size %in% plate_sizes) %>%
-    filter(nrow(.df) >= row + n_rows - 1, ncol(.df) >= col + n_cols - 1) %>%
-    mutate(valid_row = map2_lgl(n_cols, n_rows, ~all(.df[row:(row + .y - 1), col] == LETTERS[1:.y])),
-           valid_col = map2_lgl(n_cols, n_rows, ~all(.df[row - 1, (col + 1):(col + .x)] == 1:.x))) %>%
-    filter(valid_row, valid_col) %>%
-    filter(plate_size == max(plate_size)) %>%
-    select(plate_size, n_cols, n_rows)
+find_plate <- function(.df) {
+  
+  valid_plate <- tribble(~format, ~n_row, ~n_col,
+                         6, 2, 3,
+                         12, 3, 4,
+                         24, 4, 6,
+                         48, 6, 8,
+                         96, 8, 12)
+  
+  max_col <- max(valid_plate[["n_col"]])
+  max_row <- max(valid_plate[["n_row"]])
+  
+  c(row = LETTERS[1:max_row], col = 1:max_col)
+  
+  .t <- which(.df == "A", arr.ind = TRUE) %>%
+    as_tibble() %>%
+    mutate(row = row - 1,
+           header_row = map2(col, row, ~.df[(.y + 1):(.y + max_row), .x]),
+           header_col = map2(col, row, ~.df[.y, (.x + 1):(min(.x + max_col, ncol(.df)))])) %>%
+    mutate_at(vars(header_row:header_col), map, flatten_chr) %>%
+    gather(header_type, header, starts_with("header")) %>%
+    mutate(header_type = gsub("header_", "", header_type),
+           t = recode(header_type, "row" = list(LETTERS[1:max_row]), "col" = list(1:max_col)),
+           t = map2(header, t, quietly(`==`)),
+           t = map(t, "result"),
+           t = map(t, rle),
+           t = map(t, transpose),
+           t = map(t, bind_rows),
+           t = map(t, `[`, 1, TRUE))
+  
+  if (nrow(.t) == 0) return(tibble(row = numeric(0), col = numeric(0)))
+  
+  .t %>%
+    unnest(t) %>%
+    filter(values) %>%
+    select(-header, -values) %>%
+    rename(header_n = header_type) %>%
+    spread(header_n, lengths, sep = "_") %>%
+    mutate(plate = map2(header_n_row, header_n_col, ~ valid_plate %>% filter(n_row <= .x, n_col <= .y) %>% top_n(n = 1, format))) %>%
+    unnest(plate) %>%
+    select(-starts_with("header")) %>%
+    mutate(range = pmap(list(col, row, n_col, n_row), function(x, y, n_x, n_y) cell_limits(c(y, x), c(y + n_y, x + n_x))))
 }
 
-# After reading the excel sheet as a character data frame, we locate the "A" character
-# Plates are defined with rows from A up to H and columns from "1" up to "12"
-# The helper function find_plate will find out if a plate indentifier header matches the position of "A"
 
-read_plate_single <- function(input, sheet = 1) {
-  xl_sheet <- input %>%
-    read_excel(sheet = sheet, col_names = FALSE, col_types = "text")
-  
-  which(xl_sheet == "A", arr.ind = TRUE) %>%
+find_id <- function(.df) {
+  empty_row <- .df %>%
+    is.na() %>%
+    t() %>%
     as_tibble() %>%
-    mutate(plate_size = map2(col, row, find_plate, .df = xl_sheet)) %>%
-    unnest() %>%
-    mutate(plate = pmap(list(col, row, n_cols, n_rows),
-                        function(col, row, n_cols, n_rows) {
-                          read_excel(input, range = cell_limits(c(row - 1, col + 1), c(row + n_rows - 1, col + n_cols)), sheet = sheet)
-                        }
-    ),
-    is_numeric = at_depth(plate, 2, is.numeric),
-    is_numeric = map(is_numeric, flatten_lgl),
-    is_numeric = map_lgl(is_numeric, all)) %>%
-    select(row, col, n_rows, n_cols, plate_size, is_numeric, plate)
+    map(all) %>%
+    flatten_lgl() %>% 
+    set_names(seq_along(.))
+  
+  .t <- which(.df == "id", arr.ind = TRUE) %>%
+    as_tibble() %>%
+    filter(c(TRUE, empty_row)[row]) %>% # previous row should be empty
+    mutate(t = map(row, ~empty_row[.:length(empty_row)]),
+           t = map(t, rle),
+           t = map(t, transpose),
+           t = map(t, bind_rows),
+           t = map(t, `[`, 1, TRUE))
+  
+  if (nrow(.t) == 0) return(tibble(row = numeric(0), col = numeric(0)))
+  
+  .t %>% 
+    unnest(t) %>%
+    filter(!values) %>%
+    select(row, n_row = lengths) %>% # the number of non empty lines is the length of our table
+    mutate(range = map2(row, n_row, ~cell_rows(c(.x, .x + .y))))
+}
+
+# Extract all elements (plates and id tables) from a single excel file
+
+extract_elements <- function(path) {
+  path %>%
+    excel_sheets() %>%
+    set_names(glue::glue("{seq_along(.)}_{.}")) %>%
+    map(read_excel, path = path, col_names = FALSE, col_types = "text", range = cell_limits(ul = c(1, 1))) %>%
+    enframe("sheet", "data") %>%
+    separate(sheet, c("sheet_pos", "sheet_name"), sep = "_", extra = "merge") %>%
+    mutate(path = path,
+           plate = map(data, find_plate),
+           id = map(data, find_id))
+}
+
+join_if_id <- function(.x, .y, .by) {
+  if (is.null(.x) || length(.x) == 0) return(.y)
+  .x %>%
+    mutate_at(vars(id), as.character) %>%
+    right_join(.y, by = .by)
 }
 
 #' @export
-read_plate <- function(input) {
-  if (!all(file.exists(input))) {
-    # At least one file is missing:
-    stop(glue::glue("Could not find the following file(s): {input[which(!file.exists(input))]}"))
-  }
+read_plate <- function(path) {
+  associated_id <- quo(element == "id" & lag(element) == "plate")
+  path %>%
+    map_df(extract_elements) %>%
+    gather(element, where, plate, id) %>%
+    unnest(where) %>%
+    arrange(path, sheet_pos, row) %>%
+    rownames_to_column("element_id") %>%
+    group_by(path, sheet_pos) %>%
+    mutate(element_id = replace(element_id, !!associated_id, lag(element_id)[!!associated_id])) %>%
+    ungroup() %>%
+    mutate(element = forcats::as_factor(element),
+           element = forcats::fct_expand(element, c("plate", "id")),
+           data = pmap(list(path, sheet_name, range), read_excel)) %>%
+    select(element_id:element, data) %>%
+    spread(element, data, drop = FALSE) %>%
+    filter(map_int(plate, length) > 0) %>% # Remove orphan id tables
+    mutate(plate = map(plate, gather, col, value, -1),
+           plate = map(plate, set_names, c("row", "col", "value")),
+           plate = map2(id, plate, join_if_id, c("id" = "value")),
+           id = map_int(id, length),
+           id = map_lgl(id, as.logical),
+           format = map_int(plate, nrow)) %>%
+    rename(data = plate)
+}
+
+#' @export
+join_id <- function(.data) {
+  n_id <- .data %>%
+    group_by(path, format) %>%
+    filter(id) %>%
+    summarise(n = n()) %>%
+    select(path, n) %>%
+    deframe()
   
-  .df <- input %>%
-    enframe("name", "path") %>%
-    mutate(name = replace(name, is.numeric(name) | name == "", basename(path[is.numeric(name) | name == ""]))) %>%
-    distinct()
+  if (any(n_id > 1)) stop("Cannot join multiple identifiers...")
   
-  if (!(.df %>% summarise(n_distinct(name) == n()) %>% flatten_lgl())) stop("Distinct files must be named differently")
-  
-  .df <- .df %>% 
-    mutate(sheet = map(path, excel_sheets)) %>%
-    unnest() %>%
-    mutate(plates = map2(path, sheet, read_plate_single)) %>%
-    unnest() %>%
-    group_by(name, path, plate_size) %>%
-    mutate(n_layout =  length(is_numeric[is_numeric == FALSE])) %>%
-    ungroup()
-  
-  # For now we consider non numeric data frames as layouts
-  # An excel sheet containing multiple layouts is not valid
-  if (nrow(bad_file <- .df %>% filter(n_layout > 1))) warning(glue::glue("Multiple layouts are not supported: ignoring {bad_file %>% distinct(path)}"))
-  .df
-  .df %>% 
-    filter(n_layout == 1) %>%
-    mutate(plate = map2(plate, n_rows, ~mutate(.x, row = LETTERS[1:.y])),
-           plate = map(plate, gather, col, value, -row)) %>%
-    group_by(name, path, plate_size) %>%
-    mutate(layout = plate[is_numeric == FALSE],
-           layout = map(layout, rename, id = value)) %>% 
-    filter(is_numeric) %>%
-    mutate(plate = map2(plate, layout, inner_join, by = c("row", "col"))) %>%
-    select(name, path, sheet, row, col, plate_size, plate) %>%
-    unnest()
+  .data %>%
+    group_by(path, format) %>%
+    mutate(data_id = replace(list(NULL), length(data[id]) > 0, data[id])) %>%
+    filter(!id) %>%
+    mutate(data = map2(data_id, data, join_if_id, c("row", "col"))) %>%
+    select(-data_id, -id)
 }
