@@ -44,25 +44,46 @@ print.elisa_df <- function(x, ...) {
 #' 
 #' @param .df dataframe containing at least the od and id columns (with O.D. values and sample identifiers).
 #' 
-#' @param std.key a character string specifying the common starting pattern of standard point ids (default = "STD").
+#' @param .key a character string specifying the common starting pattern of standard point ids (default = "STD").
 #' 
-#' @param od a character string specifying the column containing the od values (default = "value").
+#' @param .od the column containing the od values (default = value).
 #' 
-#' @param .keep a vector containing the column names which should be included in the output
+#' @param .dose the column that will contain the extracted concentration values
 #' 
-#' @return A dataframe containing the standard.
+#' @param .drop A boolean specifying whether additional columns should be dropped (default) or not.
+#' 
+#' @return A dataframe containing the standard with the extracted concentration value (conc).
 #'
 #' @export
-elisa.standard <- function(.df, std.key = "STD", od = "value", .keep = NULL) {
-  if (!is.null(.keep) && !.keep %in% colnames(.df)) stop("Cannot keep a column that does not exist")
-  .keep <- c("column", "row", "id", "x", od, .keep)
-  if ("file" %in% colnames(.df)) .keep <- c("file", .keep)
-  std <- .df %>%
-    filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
-    mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
-    filter(x > 0) %>%
-    select(one_of(.keep))
-  return(std)
+get_standard <- function(.df, .key = "STD", .od = value, .dose = .dose, .drop = TRUE) {
+  .od <- enquo(.od)
+  # How can I assign .dose = .dose? the quosure is empty...
+  .dose <- enquo(.dose)
+  if (rlang::quo_is_missing(.dose)) .dose <- quo(.dose)
+  .df %>%
+    filter(grepl(paste0("^", .key), ignore.case = TRUE, id)) %>%
+    mutate(id = gsub(",", ".", id),
+           !!quo_name(.dose) := parse_number(id)) %>%
+    select(!!!c(quos(file, col, row, id), if (!.drop) quos(everything()), quos(-!!.dose, -!!.od, !!.dose, !!.od)))
+}
+
+#' @export
+elisa_analyse <- function(.df, .od = value, .ignore = c("empty")) {
+  .od <- enquo(.od)
+
+  check_columns <- c(quo_name(.od), "id") %in% colnames(.df)
+  if (!all(check_columns)) stop(glue::glue("Missing column(s): {glue::collapse(c(quo_name(.od), 'id')[!check_columns], sep = ', ')}"), call. = FALSE)
+  #return(rlang::new_formula(rlang::UQE(.od), quote(.dose)))
+  .df %>%
+    filter(!grepl(glue::glue("^{.ignore}$"), id, ignore.case = TRUE)) %>%
+    bind_cols(.group = group_indices(.)) %>%
+    group_by(.group) %>%
+    nest() %>% 
+    mutate(std = map(data, get_standard),
+           model = map(std, ~drc::drm(rlang::UQE(.od) ~ .dose,
+                                      data = .,
+                                      fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")),
+                                      logDose = 10)))
 }
 
 #' Analyse the O.D. values (regression)
