@@ -137,15 +137,19 @@ read_elements <- function(.df) {
            data = pmap(list(path, sheet_name, range), read_excel)) %>%
     select(element_id:element, data) %>%
     spread(element, data) %>%
-    mutate(plate = map(plate, gather, col, value, -1),
+    mutate(is_layout = !map_lgl(id, is_empty),
+           is_data = at_depth(plate, 2, is_numeric),
+           is_data = map(is_data, flatten_lgl),
+           is_data = map(is_data, `[`, -1),
+           is_data = map_lgl(is_data, all),
+           is_layout = map2_lgl(!is_data, is_layout, any),
+           plate = map(plate, gather, col, value, -1),
            plate = map(plate, set_names, c("row", "col", "value")),
            plate = map2(id, plate, join_if_id, c("id" = "value")),
-           id = map_int(id, length),
-           id = map_lgl(id, as.logical),
            format = map_int(plate, nrow),
            path = basename(path)) %>%
-    rename(file = path, data = plate, is_layout = id) %>%
-    select(-data, everything(), data)
+    rename(file = path, data = plate) %>%
+    select(-data, everything(), -is_data, -id, data)
 }
 
 #' @export
@@ -162,8 +166,9 @@ join_layout <- function(.df) {
   .df %>%
     group_by(file, format) %>%
     mutate(data_id = replace(list(NULL), length(data[is_layout]) > 0, data[is_layout])) %>%
-    filter(!is_layout) %>%
-    mutate(data = map2(data_id, data, join_if_id, c("row", "col"))) %>%
+    filter(!is_layout, !map_lgl(data_id, is_empty)) %>%
+    #mutate_at(c("data", "data_id"), map, function(x) mutate_if(x, names(x) == "id", as.character)) %>% 
+    mutate(data = map2(data, data_id, left_join, by = c("row", "col"))) %>%
     select(-data_id, -is_layout) %>%
     ungroup()
 }
