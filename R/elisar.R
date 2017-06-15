@@ -2,7 +2,7 @@
 #' @import readr
 #' @import readxl
 #' @import dplyr
-#' @importFrom purrr map_lgl map
+#' @importFrom purrr map_lgl map safely quietly
 #' @importFrom tidyr gather
 #' @import broom
 
@@ -67,23 +67,59 @@ get_standard <- function(.df, .key = "STD", .od = value, .dose = .dose, .drop = 
     select(!!!c(quos(file, col, row, id), if (!.drop) quos(everything()), quos(-!!.dose, -!!.od, !!.dose, !!.od)))
 }
 
+# Define a tidyverse compliant data first and safe drc::drm function. Using curveid would require more adjustement
+# We define otrace = TRUE to remove messages from optim (probable bug in drm as messages should be disabled with otrace = FALSE)
+safe_drm_lite <- purrr::safely(function(data, ...) drc::drm(data = data, control = drc::drmc(otrace = TRUE), ...))
+
+# Define a tidyverse compliant data first drc::ED function to estimate effective doses (we will return NA if no model is provided)
+estimate <- function(data, drm, ...) {
+  if (is_null(drm)) return(tibble(estimate = rep(NA_real_, length(data)), std_error = estimate))
+  drc::ED(drm, data, ...) %>%
+    as_tibble() %>%
+    set_names(c("estimate", "std_error"))
+}
+
 #' @export
 elisa_analyse <- function(.df, .od = value, .ignore = c("empty")) {
   .od <- enquo(.od)
-
+  
   check_columns <- c(quo_name(.od), "id") %in% colnames(.df)
   if (!all(check_columns)) stop(glue::glue("Missing column(s): {glue::collapse(c(quo_name(.od), 'id')[!check_columns], sep = ', ')}"), call. = FALSE)
-  #return(rlang::new_formula(rlang::UQE(.od), quote(.dose)))
-  .df %>%
+  
+  .df <- .df %>%
     filter(!grepl(glue::glue("^{.ignore}$"), id, ignore.case = TRUE)) %>%
     bind_cols(.group = group_indices(.)) %>%
     group_by(.group) %>%
     nest() %>% 
     mutate(std = map(data, get_standard),
-           model = map(std, ~drc::drm(rlang::UQE(.od) ~ .dose,
-                                      data = .,
-                                      fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")),
-                                      logDose = 10)))
+           model = map(std, safe_drm_lite, rlang::UQE(.od) ~ .dose,
+                       fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")),
+                       logDose = 10))  %>%
+    mutate(model = at_depth(model, 2, list),
+           model = map(model, as_tibble),
+           model = map(model, set_names, c("drm", "drm_error"))) %>%
+    unnest(model)
+  
+  # Check if an error occured at least during one regression
+  if (.df %>% filter(!map_lgl(drm_error, is_empty)) %>% nrow() > 0) {
+    warning("At least one error occured during the regression", call. = FALSE)
+    .df %>%
+      filter(!map_lgl(drm_error, is_empty)) %>%
+      mutate(error_msg = map_chr(drm_error, "message")) %>%
+      group_by(.group, error_msg) %>%
+      summarise() %>%
+      deframe() %>%
+      walk2(names(.), ~warning(glue::glue("{.x} (in group {.y})"), call. = FALSE))
+  }
+  
+  # Using estimate (customised drc::ED call) to compute the estimated concentration.
+  .df %>%
+    #filter(map_lgl(drm_error, is_empty)) %>% # Keeping only succesful # our estimate function returns NA... trying to keep the data
+    mutate(estimate = map2(map(data, quo_name(.od)), drm, quietly(estimate), type = "absolute", display = FALSE),
+           estimate = at_depth(estimate, 2, list),
+           estimate = map(estimate, as_tibble)) %>%
+    unnest(estimate) %>%
+    mutate(warnings = map(warnings, unique))
 }
 
 #' Analyse the O.D. values (regression)
