@@ -142,7 +142,7 @@ read_elements <- function(.df) {
     mutate(data = map_if(data, element %in% c("layout", "data"), gather, key, value, -1 ),
            data = map_if(data, element == "data", set_names, c("row", "col", "value")),
            data = map_if(data, element == "layout", set_names, c("row", "col", "id"))) %>% 
-    spread(element, data) %>% 
+    spread(element, data, drop = FALSE) %>% 
     mutate(layout = map2(layout, id, ~if (is_empty(.y)) {.x} else {left_join(.x, .y, by = "id")})) %>%
     select(-id) %>%
     gather(element, data, layout, data) %>%
@@ -150,7 +150,8 @@ read_elements <- function(.df) {
     mutate(format = map_int(data, nrow),
            path = basename(path)) %>%
     arrange(element_id, path, sheet_pos) %>%
-    rename(file = path)
+    rename(file = path) %>%
+    select(everything(), -data, data)
 }
 
 #' @export
@@ -166,10 +167,9 @@ join_layout <- function(.df) {
   .df %>%
     group_by(file, format) %>%
     mutate(data_id = replace(list(NULL), length(data[element == "layout"]) > 0, data[element == "layout"])) %>%
-    filter(element == "data", !map_lgl(data_id, is_empty)) %>%
-    #mutate_at(c("data", "data_id"), map, function(x) mutate_if(x, names(x) == "id", as.character)) %>% 
-    mutate(data = map2(data, data_id, left_join, by = c("row", "col"))) %>%
-    select(-data_id) %>%
+    filter(element == "data") %>%
+    mutate(data = map2(data_id, data, ~if (is_empty(.x)) {.y} else {right_join(.x, .y, by = c("row", "col"))})) %>%
+    select(-data_id, -element) %>%
     ungroup()
 }
 
