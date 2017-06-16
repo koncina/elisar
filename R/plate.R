@@ -49,7 +49,11 @@ find_plate <- function(.df) {
     mutate(plate = map2(header_n_row, header_n_col, ~ valid_plate %>% filter(n_row <= .x, n_col <= .y) %>% top_n(n = 1, format))) %>%
     unnest(plate) %>%
     select(-starts_with("header")) %>%
-    mutate(range = pmap(list(col, row, n_col, n_row), function(x, y, n_x, n_y) cell_limits(c(y, x), c(y + n_y, x + n_x))))
+    mutate(is_numeric = pmap(list(col, row, n_col, n_row), function(x, y, n_x, n_y) .df[(y + 1):(y + n_y), (x + 1):(x + n_x)]),
+           is_numeric = at_depth(is_numeric, 2, guess_parser),
+           is_numeric = map(is_numeric, `%in%`, c("double", "integer")),
+           is_numeric = map_lgl(is_numeric, all),
+           range = pmap(list(col, row, n_col, n_row), function(x, y, n_x, n_y) cell_limits(c(y, x), c(y + n_y, x + n_x))))
 }
 
 # Helper function to find the localisation of ID tables (extended information for the layout plates)
@@ -61,7 +65,7 @@ find_id <- function(.df) {
     as_tibble() %>%
     map(all) %>%
     flatten_lgl() %>% 
-    set_names(seq_along(.))
+    set_names(as.character(seq_along(.))) # dev version of purrr does not coerce to character anymore...
   
   .t <- which(.df == "id", arr.ind = TRUE) %>%
     as_tibble() %>%
@@ -81,13 +85,6 @@ find_id <- function(.df) {
     mutate(range = map2(row, n_row, ~cell_rows(c(.x, .x + .y))))
 }
 
-join_if_id <- function(.x, .y, .by) {
-  if (is.null(.x) || length(.x) == 0) return(.y)
-  .x %>%
-    mutate_at(vars(id), as.character) %>%
-    right_join(.y, by = .by)
-}
-
 #' List plate elements in excel files
 #'
 #' List all plate (data and layout) and associated extended id tables.
@@ -97,9 +94,10 @@ join_if_id <- function(.x, .y, .by) {
 #' @return A tibble listing the found elements: element (plate or id), position (row, col), format (6, 12, 24, 48, 96 well plate), range (cellranger::cell_limits S3 object to be used in read_excel)
 #'
 #' @export
-list_elements <- function(path) {
-  associated_id <- quo(element == "id" & lag(element) == "plate")
+list_elements <- function(path, na = "") {
+  associated_id <- quo(element == "id" & lag(element) == "layout")
   path %>%
+    unique() %>%
     set_names() %>%
     map(excel_sheets) %>%
     enframe("path", "sheet_name") %>%
@@ -107,17 +105,22 @@ list_elements <- function(path) {
     group_by(path) %>%
     mutate(sheet_pos = seq_along(sheet_name),
            data = map2(path, sheet_name, read_excel, col_names = FALSE, col_types = "text", range = cell_limits(ul = c(1, 1))),
-           plate = map(data, find_plate),
-           id = map(data, find_id)) %>%
+           id = map(data, find_id),
+           data = map(data, find_plate)) %>%
     ungroup() %>%
-    select(-data) %>%
-    gather(element, where, plate, id) %>%
+    gather(element, where, data, id) %>%
     unnest() %>%
     arrange(path, sheet_pos, row) %>%
-    mutate(element_id = replace(NA, element == "plate", seq_along(element[element == "plate"])),
-           element_id = walk(replace(element_id, !!associated_id, lag(element_id)[!!associated_id]),
+    group_by(path, sheet_name) %>% # We won't accept a layout on one sheet and the extended id on the next one.
+    mutate(element = replace(element, element == "data" & lead(element) == "id", "layout"),
+           element = replace(element, !is_numeric, "layout")) %>%
+    ungroup() %>%
+    mutate(element_id = replace(NA, element != "id", seq_along(element[element != "id"]))) %>%
+    group_by(sheet_pos) %>%
+    mutate(element_id = walk(replace(element_id, !!associated_id, lag(element_id)[!!associated_id]),
                              ~if (is.na(.)) warning("Found orphan ID table", call. = FALSE))) %>%
-    select(element_id, everything(), -n_row, -n_col)
+    ungroup() %>%
+    select(element_id, everything(), -is_numeric, -n_row, -n_col)
 }
 
 #' Read plate elements in excel files
@@ -133,43 +136,40 @@ read_elements <- function(.df) {
   .df %>%
     filter(!is.na(element_id)) %>%
     mutate(element = forcats::as_factor(element),
-           element = forcats::fct_expand(element, c("plate", "id")),
+           element = forcats::fct_expand(element, c("data", "layout", "id")), # to generate all columns in spread 
            data = pmap(list(path, sheet_name, range), read_excel)) %>%
     select(element_id:element, data) %>%
-    spread(element, data) %>%
-    mutate(is_layout = !map_lgl(id, is_empty),
-           is_data = at_depth(plate, 2, is_numeric),
-           is_data = map(is_data, flatten_lgl),
-           is_data = map(is_data, `[`, -1),
-           is_data = map_lgl(is_data, all),
-           is_layout = map2_lgl(!is_data, is_layout, any),
-           plate = map(plate, gather, col, value, -1),
-           plate = map(plate, set_names, c("row", "col", "value")),
-           plate = map2(id, plate, join_if_id, c("id" = "value")),
-           format = map_int(plate, nrow),
+    mutate(data = map_if(data, element %in% c("layout", "data"), gather, key, value, -1 ),
+           data = map_if(data, element == "data", set_names, c("row", "col", "value")),
+           data = map_if(data, element == "layout", set_names, c("row", "col", "id"))) %>% 
+    spread(element, data) %>% 
+    mutate(layout = map2(layout, id, ~if (is_empty(.y)) {.x} else {left_join(.x, .y, by = "id")})) %>%
+    select(-id) %>%
+    gather(element, data, layout, data) %>%
+    filter(!map_dbl(data, is_empty)) %>%
+    mutate(format = map_int(data, nrow),
            path = basename(path)) %>%
-    rename(file = path, data = plate) %>%
-    select(-data, everything(), -is_data, -id, data)
+    arrange(element_id, path, sheet_pos) %>%
+    rename(file = path)
 }
 
 #' @export
 join_layout <- function(.df) {
   n_id <- .df %>%
     group_by(file, format) %>%
-    filter(is_layout) %>%
+    filter(element == "layout") %>%
     summarise(n = n()) %>%
     select(file, n) %>%
     deframe()
   
-  if (any(n_id > 1)) stop("Cannot join multiple layouts...")
-  
+  if (any(n_id > 1)) stop("Cannot join multiple layouts...", call. = FALSE)
   .df %>%
     group_by(file, format) %>%
-    mutate(data_id = replace(list(NULL), length(data[is_layout]) > 0, data[is_layout])) %>%
-    filter(!is_layout, !map_lgl(data_id, is_empty)) %>%
+    mutate(data_id = replace(list(NULL), length(data[element == "layout"]) > 0, data[element == "layout"])) %>%
+    filter(element == "data", !map_lgl(data_id, is_empty)) %>%
     #mutate_at(c("data", "data_id"), map, function(x) mutate_if(x, names(x) == "id", as.character)) %>% 
     mutate(data = map2(data, data_id, left_join, by = c("row", "col"))) %>%
-    select(-data_id, -is_layout) %>%
+    select(-data_id) %>%
     ungroup()
 }
 
