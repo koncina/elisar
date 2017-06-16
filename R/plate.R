@@ -179,6 +179,7 @@ read_plate <- function(path) {
     list_elements() %>%
     read_elements() %>%
     join_layout() %>%
-    unnest()
+    unnest() %>%
+    select(-value, value)
 }
 
