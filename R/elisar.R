@@ -80,11 +80,20 @@ estimate <- function(data, drm, ...) {
 }
 
 #' @export
-elisa_analyse <- function(.df, .od = value, .ignore = c("empty")) {
+elisa_analyse <- function(.df, .od = value, .ignore = c("empty"), .dilution = NULL) {
   .od <- enquo(.od)
+  .dilution <- enquo(.dilution)
   
-  check_columns <- c(quo_name(.od), "id") %in% colnames(.df)
-  if (!all(check_columns)) stop(glue::glue("Missing column(s): {glue::collapse(c(quo_name(.od), 'id')[!check_columns], sep = ', ')}"), call. = FALSE)
+  #check_quosures <- c(.od, .dilution)
+  #if (!all(check_quosures %>% map_lgl(rlang::quo_is_symbolic) | check_quosures %>% map_lgl(rlang::quo_is_null))) stop("")
+  
+  mandatory_columns <- c(quo_name(.od), "id")
+  if (!is.null(rlang::get_expr(.dilution))) {
+    mandatory_columns <- c(mandatory_columns, quo_name(.dilution))
+  }
+  
+  check_columns <- mandatory_columns %in% colnames(.df)
+  if (!all(check_columns)) stop(glue::glue("Missing column(s): {glue::collapse(mandatory_columns[!check_columns], sep = ', ')}"), call. = FALSE)
   
   .df <- .df %>%
     filter(!grepl(glue::glue("^{.ignore}$"), id, ignore.case = TRUE)) %>%
@@ -92,7 +101,7 @@ elisa_analyse <- function(.df, .od = value, .ignore = c("empty")) {
     group_by(.group) %>%
     nest() %>% 
     mutate(std = map(data, get_standard),
-           model = map(std, safe_drm_lite, rlang::UQE(.od) ~ .dose,
+           model = map(std, safe_drm_lite, rlang::UQE(.od) ~ log10(.dose),
                        fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")),
                        logDose = 10))  %>%
     mutate(model = at_depth(model, 2, list),
@@ -100,7 +109,7 @@ elisa_analyse <- function(.df, .od = value, .ignore = c("empty")) {
            model = map(model, set_names, c("drm", "drm_error"))) %>%
     unnest(model)
   
-  # Check if an error occured at least during one regression
+  # Check if an error occured during a regression
   if (.df %>% filter(!map_lgl(drm_error, is_empty)) %>% nrow() > 0) {
     warning("At least one error occured during the regression", call. = FALSE)
     .df %>%
@@ -113,13 +122,24 @@ elisa_analyse <- function(.df, .od = value, .ignore = c("empty")) {
   }
   
   # Using estimate (customised drc::ED call) to compute the estimated concentration.
-  .df %>%
-    #filter(map_lgl(drm_error, is_empty)) %>% # Keeping only succesful # our estimate function returns NA... trying to keep the data
+  .df <- .df %>%
     mutate(estimate = map2(map(data, quo_name(.od)), drm, quietly(estimate), type = "absolute", display = FALSE),
            estimate = at_depth(estimate, 2, list),
            estimate = map(estimate, as_tibble)) %>%
     unnest(estimate) %>%
-    mutate(warnings = map(warnings, unique))
+    mutate(warnings = map(warnings, unique)) %>%
+    unnest(data, result)
+  
+  # Handling dilution
+  if (!rlang::quo_is_null(.dilution)) {
+    .df <- .df %>%
+      mutate(!!quo_name(.dilution) := replace(!!.dilution, is.na(!!.dilution), 1),
+             estimate = estimate * !!.dilution,
+             std_error = std_error * !!.dilution)
+  }
+  
+  .df
+  
 }
 
 #' Analyse the O.D. values (regression)
