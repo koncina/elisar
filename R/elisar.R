@@ -35,6 +35,12 @@ glance.drc <- function(x, ...) {
 get_standard <- function(.df, .key = "STD", .od = value, .dose = .dose, .drop = TRUE) {
   .od <- enquo(.od)
   # How can I assign .dose = .dose? the quosure is empty...
+  
+  mandatory_columns <- c(quo_name(.od), "id")
+
+  check_columns <- mandatory_columns %in% colnames(.df)
+  if (!all(check_columns)) stop(glue::glue("Missing column(s): {glue::collapse(mandatory_columns[!check_columns], sep = ', ')}"), call. = FALSE)
+  
   .dose <- enquo(.dose)
   if (rlang::quo_is_missing(.dose)) .dose <- quo(.dose)
   .df %>%
@@ -56,9 +62,23 @@ estimate <- function(data, drm, ...) {
     set_names(c("estimate", "estimate_sd"))
 }
 
-regression_4pl <- function(.df, .od = value, .ignore = c("empty")) {
+#' @export
+elisa_analyse <- function(.df, .od = value, .ignore = c("empty"), dilution = NULL) {
   .od <- enquo(.od)
-  .df %>%
+  dilution <- enquo(dilution)
+  
+  #check_quosures <- c(.od, .dilution)
+  #if (!all(check_quosures %>% map_lgl(rlang::quo_is_symbolic) | check_quosures %>% map_lgl(rlang::quo_is_null))) stop("")
+  
+  mandatory_columns <- c(quo_name(.od), "id")
+  if (!is_null(rlang::get_expr(dilution))) {
+    mandatory_columns <- c(mandatory_columns, quo_name(dilution))
+  }
+  
+  check_columns <- mandatory_columns %in% colnames(.df)
+  if (!all(check_columns)) stop(glue::glue("Missing column(s): {glue::collapse(mandatory_columns[!check_columns], sep = ', ')}"), call. = FALSE)
+
+  .df <- .df %>%
     filter(!grepl(glue::glue("^{.ignore}$"), id, ignore.case = TRUE)) %>%
     bind_cols(.group = group_indices(.)) %>%
     group_by(.group) %>%
@@ -71,27 +91,7 @@ regression_4pl <- function(.df, .od = value, .ignore = c("empty")) {
            model = at_depth(model, 2, list),
            model = map(model, as_tibble),
            model = map(model, set_names, c("drm", "drm_error"))) %>%
-    unnest(model)
-}
-
-#' @export
-elisa_analyse <- function(.df, .od = value, .ignore = c("empty"), .dilution = NULL) {
-  .od <- enquo(.od)
-  .dilution <- enquo(.dilution)
-  
-  #check_quosures <- c(.od, .dilution)
-  #if (!all(check_quosures %>% map_lgl(rlang::quo_is_symbolic) | check_quosures %>% map_lgl(rlang::quo_is_null))) stop("")
-  
-  mandatory_columns <- c(quo_name(.od), "id")
-  if (!is_null(rlang::get_expr(.dilution))) {
-    mandatory_columns <- c(mandatory_columns, quo_name(.dilution))
-  }
-  
-  check_columns <- mandatory_columns %in% colnames(.df)
-  if (!all(check_columns)) stop(glue::glue("Missing column(s): {glue::collapse(mandatory_columns[!check_columns], sep = ', ')}"), call. = FALSE)
-  
-  .df <- .df %>%
-    regression_4pl(.od = !!.od, .ignore = .ignore) %>%
+    unnest(model) %>% 
     mutate(params = map(drm, broom::glance)) %>%
     unnest(params)
   
@@ -118,11 +118,11 @@ elisa_analyse <- function(.df, .od = value, .ignore = c("empty"), .dilution = NU
     mutate(estimate = replace(estimate, is.na(estimate) & (!!.od) < drm_lower, 0))
   
   # Handling dilution
-  if (!rlang::quo_is_null(.dilution)) {
+  if (!rlang::quo_is_null(dilution)) {
     .df <- .df %>%
-      mutate(!!quo_name(.dilution) := replace(!!.dilution, is.na(!!.dilution), 1),
-             estimate = estimate * !!.dilution,
-             estimate_sd = estimate_sd * !!.dilution)
+      mutate(!!quo_name(dilution) := replace(!!dilution, is.na(!!dilution), 1),
+             estimate = estimate * !!dilution,
+             estimate_sd = estimate_sd * !!dilution)
   }
   
   .df
