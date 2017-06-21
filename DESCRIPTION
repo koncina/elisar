@@ -10,11 +10,17 @@ Description: Perform a 4PL regression of Elisa O.D. measures. Loads Tecan
     Sunrise excel files (edited to contain the plate layout and sample informations)
 Imports:
     drc,
-    tidyverse,
+    broom,
+    digest,
+    dplyr,
+    ggplot2,
+    readr,
+    tibble,
+    tidyr,
+    purrr,
     readxl (>= 1.0)
 URL: http://eric.koncina.eu/r/elisar
 License: LGPL-3
 LazyData: TRUE
 RoxygenNote: 6.0.1
-Suggests: covr,
-    testthat
+Suggests: testthat
