@@ -156,21 +156,37 @@ read_elements <- function(.df) {
 
 #' @export
 join_layout <- function(.df) {
+  
+  join_if_present <- function(data_id, data, file, element_id) {
+    if (is_empty(data_id)) {
+      warning(glue::glue("No layout found for element {element_id} in {file}"), call. = FALSE);
+      data
+    } else {
+      right_join(data_id, data, by = c("row", "col"))
+    }
+  }
+  
+  # backup original groups
+  g <- .df %>%
+    groups()
+  
   n_id <- .df %>%
-    group_by(file, format) %>%
+    group_by(format, add = TRUE) %>%
+    bind_cols(.group = group_indices(.)) %>%
+    group_by(.group) %>%
     filter(element == "layout") %>%
     summarise(n = n()) %>%
-    select(file, n) %>%
+    select(.group, n) %>%
     deframe()
   
-  if (any(n_id > 1)) stop("Cannot join multiple layouts...", call. = FALSE)
+  if (any(n_id > 1)) stop("Cannot join multiple layouts in each group...", call. = FALSE)
   .df %>%
-    group_by(file, format) %>%
+    group_by(format, add = TRUE) %>%
     mutate(data_id = replace(list(NULL), length(data[element == "layout"]) > 0, data[element == "layout"])) %>%
     filter(element == "data") %>%
-    mutate(data = map2(data_id, data, ~if (is_empty(.x)) {.y} else {right_join(.x, .y, by = c("row", "col"))})) %>%
+    mutate(data = pmap(list(data_id, data, file, element_id), join_if_present)) %>%
     select(-data_id, -element) %>%
-    ungroup()
+    group_by(!!!g) # restore groups
 }
 
 #' @export

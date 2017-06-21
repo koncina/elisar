@@ -64,6 +64,12 @@ estimate <- function(data, drm, ...) {
 
 #' @export
 elisa_analyse <- function(.df, .od = value, .ignore = c("empty"), dilution = NULL) {
+  
+  if (!is.data.frame(.df)) stop(".df is not a data.frame")
+  
+  g <- .df %>%
+    groups()
+  
   .od <- enquo(.od)
   dilution <- enquo(dilution)
   
@@ -115,7 +121,8 @@ elisa_analyse <- function(.df, .od = value, .ignore = c("empty"), dilution = NUL
     unnest(estimate) %>%
     mutate(warnings = map(warnings, unique)) %>%
     unnest(data, result, out_of_range) %>%
-    mutate(estimate = replace(estimate, is.na(estimate) & (!!.od) < drm_lower, 0))
+    mutate(estimate_sd = replace(estimate_sd, is.na(estimate) & (!!.od) < drm_lower, NA_real_),
+           estimate = replace(estimate, is.na(estimate) & (!!.od) < drm_lower, 0))
   
   # Handling dilution
   if (!rlang::quo_is_null(dilution)) {
@@ -125,7 +132,8 @@ elisa_analyse <- function(.df, .od = value, .ignore = c("empty"), dilution = NUL
              estimate_sd = estimate_sd * !!dilution)
   }
   
-  .df
+  .df %>%
+    group_by(!!!g)
   
 }
 
