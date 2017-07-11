@@ -104,7 +104,7 @@ list_elements <- function(path, na = "") {
     unnest() %>%
     group_by(path) %>%
     mutate(sheet_pos = seq_along(sheet_name),
-           data = map2(path, sheet_name, read_excel, col_names = FALSE, col_types = "text", range = cell_limits(ul = c(1, 1))),
+           data = map2(path, sheet_name, read_excel, col_names = FALSE, col_types = "text", range = cell_limits(ul = c(1, 1)), na = na),
            id = map(data, find_id),
            data = map(data, find_plate)) %>%
     ungroup() %>%
@@ -132,12 +132,12 @@ list_elements <- function(path, na = "") {
 #' @return A nested tibble containing the data elements: is_layout (boolean), format (6, 12, 24, 48, 96 well plate), data (nested tibble containing the tidy data)
 #'
 #' @export
-read_elements <- function(.df) {
+read_elements <- function(.df, na = "") {
   .df %>%
     filter(!is.na(element_id)) %>%
     mutate(element = forcats::as_factor(element),
            element = forcats::fct_expand(element, c("data", "layout", "id")), # to generate all columns in spread 
-           data = pmap(list(path, sheet_name, range), read_excel)) %>%
+           data = pmap(list(path, sheet_name, range, na = na), read_excel)) %>%
     select(element_id:element, data) %>%
     mutate(data = map_if(data, element %in% c("layout", "data"), gather, key, value, -1 ),
            data = map_if(data, element == "data", set_names, c("row", "col", "value")),
@@ -190,10 +190,11 @@ join_layout <- function(.df) {
 }
 
 #' @export
-read_plate <- function(path) {
+read_plate <- function(path, na = "") {
   path %>%
-    list_elements() %>%
-    read_elements() %>%
+    list_elements(na = na) %>%
+    read_elements(na = na) %>%
+    group_by(file) %>%
     join_layout() %>%
     unnest() %>%
     select(-value, value)
