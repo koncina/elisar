@@ -11,7 +11,7 @@ is.readxl.bugging = function(.df) {
     if ("0.00" %in% x) return(TRUE)
     return(FALSE)
   }
-  b <- .df %>% summarise_each(funs(check)) %>% rowSums(.)
+  b <- .df %>% summarise_all(funs(check)) %>% rowSums(.)
   if (b > 0) return(TRUE)
   return(FALSE)
 }
@@ -33,9 +33,9 @@ find.plate <- function(.i, .input) {
       if (isTRUE(all(sub("\\.0{6}$", "", .df[row, 1:12 + col]) == 1:12)) & isTRUE(all(.df[1:8 + row, col] == LETTERS[1:8]))) {
         .df <- tryCatch({
           setNames(.df[1:8 + row, 0:12 + col], c("row", 1:12)) %>%
-            mutate_each(funs(replace(.,  . == "Overflow", NA))) %>% # Removing overflow values
-            mutate_each(funs(as.numeric), -row) %>%
-            gather_(key = "column", value = "value", c(1:12)) %>%
+            mutate_all(funs(replace(.,  . == "Overflow", NA))) %>% # Removing overflow values
+            mutate_at(vars(-row), funs(as.numeric)) %>%
+            gather(key = "column", value = "value", -row) %>%
             `attr<-`("what", "data") %>%
             `attr<-`("pos", c(row, col))
         }, warning = function(w) {
@@ -43,7 +43,7 @@ find.plate <- function(.i, .input) {
           # I can get the message (w) but it depends on locales...
           # Is it possible to obtain an id/code or whatever unique?
           .id <- tryCatch({setNames(.df[1:8 + row, 0:12 + col], c("row", 1:12)) %>%
-              gather_(key = "column", value = "id", c(1:12))
+              gather(key = "column", value = "id", -row)
           }, warning = function(w) {
             # If we still raise a warning, then something is wrong!
             stop(paste("Could not handle the sheet", .i))
