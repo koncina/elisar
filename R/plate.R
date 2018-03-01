@@ -187,6 +187,7 @@ read.plate.single.caller <- function(i, input, layout = NA, checksum = "md5") {
 #'
 #' @export
 read.plate = function(input, layout = NA, checksum = "md5") {
+  .Deprecated("read_plate")
   if (!all(file.exists(input))) {
     # At least one file is missing:
     stop(paste("Could not find the following file(s):", paste(input[which(!file.exists(input))], collapse = ", ")))
