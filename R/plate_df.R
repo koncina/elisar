@@ -49,10 +49,10 @@ read_plate <- function(path) {
   layout_v <- as.vector(elements_list[[layout_element]])
 
   elt_df <- do.call(rbind, lapply(elements_list[-c(layout_element, id_element)], build_df, layout_v = layout_v))
-  class(elt_df) <- c("tbl_df", "tbl", "data.frame") # Setting tibble class to allow pretty printing without tibble dependency
   
   if (length(id_element) == 1) elt_df <- merge(elt_df, elements_list[[id_element]],
                                                by = "id", sort = FALSE, all.x = TRUE)[, union(names(elt_df), names(elements_list[[id_element]]))]
+  class(elt_df) <- c("tbl_df", "tbl", "data.frame") # Setting tibble class to allow pretty printing without tibble dependency
   elt_df
 
   
