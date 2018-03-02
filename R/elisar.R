@@ -1,177 +1,123 @@
-#' @import digest
-#' @import readr
 #' @import readxl
-#' @import dplyr
-#' @importFrom purrr map_lgl map
-#' @importFrom tidyr gather
-#' @import broom
 
-mutate_ifTrue <- function(.data, is.true = TRUE, ...) {
-  if (isTRUE(is.true)) return(mutate(.data, ...))
-  else return(.data)
+NULL
+
+std_fit <- function(concentration, od) {
+  warn_list <- NULL
+  fit_env <- environment()
+  h <- function(w) {assign("warn_list", c(warn_list, w[["message"]]), envir = fit_env); invokeRestart("muffleWarning")}
+  model <- withCallingHandlers(drc::drm(od ~ log10(concentration), fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")), logDose = 10), warning = h)
+  lapply(unique(warn_list), function(x) warning(paste(x, "(during standard curve fitting)\n"), call. = FALSE))
+  model
 }
 
-# Adding a "glance" method for drc (see broom)
-#' @export
-glance.drc <- function(x, ...) {
-  .row <- NULL
-  .row <- rbind(.row, x$coefficients)
-  return(as.data.frame(.row))
-}
-
-# Calculate the concentrations from the 4PL model using drc::ED
-od2conc <- function(.df, .model) {
+drm_estimate <- function(drm_model, od) {
   # From: http://romainfrancois.blog.free.fr/index.php?post/2009/05/20/Disable-specific-warnings
-  h <- function(w) if( any( grepl( "log\\(\\(100 - p\\)/100\\).*NaN.*", w) ) ) invokeRestart( "muffleWarning" )
-  .df %>%
-    bind_cols(rename(tidy(withCallingHandlers(drc::ED(.model, .df[[".y"]], type = "absolute", display = F), warning = h)), .c = Estimate, .c.sd = Std..Error)) %>%
-    mutate(.c = ifelse(is.na(.c) & .y < summary(.model)[[3]][[2]], 0, .c)) -> .df
-  return(.df)
+  h <- function(w) if(any(grepl("log\\(\\(100 - p\\)/100\\).*NaN.*", w))) invokeRestart( "muffleWarning" )
+  conc <- withCallingHandlers(drc::ED(drm_model, od, type = "absolute", display = FALSE), warning = h)
+  
+  # Replace NaN values with 0 when OD < lower estimate
+  conc[,1] <- replace(conc[,1], is.nan(conc[,1]) & od < drm_model[["coefficients"]][[2]], 0)
+  # Replace NaN values of sd with NA if concentration was changed above
+  conc[,2] <- replace(conc[,2], is.nan(conc[,2]) & conc[,1] == 0, NA)
+  rownames(conc) <- NULL
+  in_range <- ifelse(od <= max(drm_model[["data"]]["od"]), TRUE, FALSE)
+  if ((s <- sum(!in_range, na.rm = TRUE)) > 0) warning(sprintf("%d OD value%s outside the standard range",
+                                                               s, ifelse(s > 1, "s are", " is")), call. = FALSE)
+  list(estimate = conc, in_range = in_range)
 }
 
-#' @export
-print.elisa_df <- function(x, ...) {
-  .model <- attr(x, "model")
-  cat("elisa.analyse() concentration values obtained from the OD with the following 4PL regression(s):\n\n")
-  print(as.data.frame(.model))
-  cat("\n")
-  print(tbl_df(unclass(x)))
+# Parse standard concentration values and return the values together
+# with the index of standard points
+get_standard <- function(id, std_key = "^STD", dec = ".") {
+  std_index <- grepl(std_key, id)
+  if (sum(std_index) == 0) stop("Could not detect any matching standard curve ID")
+  std_value <- type.convert(sub(std_key, "", id[std_index]), as.is = TRUE, dec = dec)
+  if (!is.numeric(std_value)) stop("Failed to parse standard concentration values")
+  list(index = std_index, value = std_value)
 }
 
-#' Extract the standard points
+
+#' Analyse the O.D. values (regression)
 #'
-#' Filter out the standard point values according the standard point identification pattern (default = "STD").
+#' Performs a 4-PL regression of the standard values and converts the O.D. into concentration values.
+#'
+#' @param id a character vector containing the identifiers.
+#'
+#' @param value a numerical vector containing the O.D. values.
+#'
+#' @param std_key a character string specifying the common starting pattern of standard point ids (default = "^STD").
 #' 
-#' @param .df dataframe containing at least the od and id columns (with O.D. values and sample identifiers).
+#' @param dec a character string used as a decimal separator for the encoded standard concentration values.
 #' 
-#' @param std.key a character string specifying the common starting pattern of standard point ids (default = "STD").
+#' @param .drop Should input columns be dropped? (default = `TRUE`)
 #' 
-#' @param od a character string specifying the column containing the od values (default = "value").
+#' @return A numerical vector containing the calculated concentrations.
+#'
+#' @details A complete example on how to perform an analysis can be found at \url{https://github.com/koncina/elisar}.
+#'
+#' @examples
+#' \dontrun{
+#' library(tidyverse)
+#' library(elisar)
 #' 
-#' @param .keep a vector containing the column names which should be included in the output
-#' 
-#' @return A dataframe containing the standard.
+#' read_plate("od_measure.xls") %>%
+#'   mutate(concentration = get_concentration(id, value))
+#' }
 #'
 #' @export
-elisa.standard <- function(.df, std.key = "STD", od = "value", .keep = NULL) {
-  if (!is.null(.keep) && !.keep %in% colnames(.df)) stop("Cannot keep a column that does not exist")
-  .keep <- c("column", "row", "id", "x", od, .keep)
-  if ("file" %in% colnames(.df)) .keep <- c("file", .keep)
-  std <- .df %>%
-    filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>%
-    mutate(id = gsub(",", ".", id), x = parse_number(id)) %>%
-    filter(x > 0) %>%
-    select(one_of(.keep))
-  return(std)
+get_concentration <- function(id, value, std_key = "^STD", dec = ".") {
+  std <- get_standard(id, std_key, dec)
+  drm_model <- std_fit(std[["value"]], value[std[["index"]]])
+  conc <- drm_estimate(drm_model, value)
+  as.numeric(conc[["estimate"]][,1])
 }
 
 #' Analyse the O.D. values (regression)
 #'
 #' Performs a 4-PL regression of the standard values and converts the O.D. into concentration values.
 #'
-#' @param .df dataframe containing at least the od and id columns (with O.D. values and sample identifiers).
+#' @param .data dataframe containing at least the value and id columns (with O.D. values and sample identifiers).
 #'
-#' @param od a character string specifying the column containing the od values (default = "value").
+#' @param value a character string specifying the column containing the O.D. values (default = "value").
 #'
-#' @param concentration a character string specifying the column that will contain the calculated concentration values (default = "concentration").
-#'
-#' @param blank a logical value indicating whether blank values (id = 'blank') should be substracted from all O.D. values.
-#'
-#' @param transform a logical value indicating whether O.D. values should be log10 transformed before the regression.
-#'
-#' @param std.key a character string specifying the common starting pattern of standard point ids (default = "STD").
+#' @param std_key a character string specifying the common starting pattern of standard point ids (default = "^STD").
 #' 
-#' @param dilution NULL or character string specifying a column to be used for the sample dilution factors (default = NULL).
-#'
-#' @param tecan a logical value indicating whether bad Tecan O.D. values (>1000) should be fixed.
+#' @param dec a character string used as a decimal separator for the encoded standard concentration values.
 #' 
-#' @param multi.regression a logical value indicating whether the data set should be split by filename before the regression (when multiple files are loaded with 'read.plate').
+#' @param var_in a character string used for the OD values (default = "value")
+#' 
+#' @param var_out a character string used to name the output columns (default = "estimate")
+#' 
+#' @param .drop Should input columns be dropped? (default = `FALSE`)
+#' 
+#' @return A dataframe including the calculated concentrations, standard deviation and wether the value is in the range of the standard curve.
 #'
-#' @return A dataframe including the calculated concentrations.
-#'
-#' @details A complete example on how to perform an analysis can be found at \url{http://eric.koncina.eu/r/elisar}.
+#' @details A complete example on how to perform an analysis can be found at \url{https://github.com/koncina/elisar}.
 #'
 #' @examples
 #' \dontrun{
 #' library(elisar)
-#' library(ggplot2)
-#'
 #' # Import file
-#' e <- read.plate("od_measure.xls")
-#' e <- elisa.analyze(e)
-#' e <- elisa.analyze(e, blank = TRUE, transform = TRUE)
+#' e <- read_plate("od_measure.xls")
+#' elisa_analyse(e)
+#' elisa_analyse(e, .drop = TRUE)
 #' }
 #'
 #' @export
-elisa.analyse = function(.df, blank = FALSE, transform = FALSE, tecan = FALSE, dilution = NULL, std.key = "STD", od = "value", concentration = "concentration", multi.regression = TRUE) {
-  
-  if (!"id" %in% colnames(.df)) stop("Missing mandatory column 'id'")
-  if (concentration %in% colnames(.df)) stop("Concentration column already exists (try to adjust the 'concentration' argument).")
-  if (any(c(".y", ".c", ".c.sd", ".dilution") %in% colnames(.df))) stop("The dataframe should not contain column names .y, .dilution, .c or .c.sd")
-  
-  if (!isTRUE(multi.regression)) {
-    .df %>%
-      mutate(file = paste(unique(file), collapse = ", ")) -> .df
-  }
-  
-  # Adjusting the dataframe (od can be log-transformed, blank substracted or fixed for a Tecan bug)
-  # and performing the 4PL regression
-  .df %>%
-    filter(tolower(id) != "empty") %>%
-    mutate_(.y = od) %>% # y will be our "response" variable (od)
-    group_by(file) %>%
-    mutate_ifTrue(is.true = tecan, .y = ifelse(.y > 1000, .y/1000, .y)) %>% # Tecan generates excel sheets with wrong values (locale bug?)
-    mutate_ifTrue(is.true = blank, .y = .y - mean(.y[tolower(id) == "blank"], na.rm = TRUE)) %>%
-    mutate_ifTrue(is.true = transform, .y = log10(.y)) %>%
-    nest() %>%
-    mutate(std = map(data, elisa.standard, .keep = ".y")) %>%
-    mutate(model = map(std, ~ drc::drm(.y ~ log10(x), data = .x, fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")), logDose = 10))) %>%
-    mutate(data = map(data, od2conc, .m = model[[1]])) -> .df
-  
-  .df %>%
-    select(-data, -std) %>%
-    mutate(model = map(model, glance)) %>%
-    unnest() -> .model
-  
-  .df %>%
-    select(-std, -model) %>%
-    unnest() %>%
-    group_by(file) %>%
-    mutate(.valid = ifelse(.y <= max(.y[grepl(paste0("^", std.key), ignore.case = TRUE, id)], na.rm = TRUE) & !is.na(.y), TRUE, FALSE)) %>%
-    ungroup -> .df
-  
-  # Applying the dilution factor if present
-  if (!is.null(dilution)) {
-    if (!dilution %in% colnames(.df)) stop("Could not find specified dilution column!")
-    .df <- .df %>%
-      mutate_(.dilution = dilution) %>%
-      mutate(.dilution = ifelse(is.na(.dilution), 1, .dilution),
-             .c = .dilution * .c,
-             .c.sd = .dilution * .c.sd) %>%
-      select(-.dilution)
-  }
-  
-  .df <- .df %>%
-    select(file, column, row, id, everything(), -.rownames, -.y, -.valid, .valid) %>%
-    rename_(.dots = setNames(c(".c", ".c.sd"), c(concentration, paste0(concentration, ".sd"))))
-  
-  # Displaying warning if OD is outside standard range
-  if (!.df %>% filter(!grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>% select(.valid) %>% map_lgl(all)) 
-    message(sprintf("%d OD value%s outside the standard range",
-                    s <- sum(!.df$.valid, na.rm = TRUE), ifelse(s > 1, "s are", " is")))
-  
-  # Displaying warning if a standard point is missing (NA as a consequence of a tecan "Overflow")
-  if (!.df %>% filter(grepl(paste0("^", std.key), ignore.case = TRUE, id)) %>% select(.valid) %>% map_lgl(all))
-    message(sprintf("%d standard OD value%s invalid (NA or overflow)",
-                    s <- sum(!.df$.valid, na.rm = TRUE), ifelse(s > 1, "s are", " is")))
-  
-  if (isTRUE(transform)) attr(.df, "transform") <- TRUE
-  attr(.df, "model") <- .model
-  class(.df) <- append("elisa_df", class(.df))
-  
-  return(.df)
+elisa_analyse <- function(x, std_key = "^STD", dec = ".", var_in = "value", var_out = "estimate", .drop = FALSE) {
+  check_arg(var_in, var_out, var_type = "character", var_length = 1)
+  std <- get_standard(x[["id"]], std_key, dec)
+  drm_model <- std_fit(std[[var_in]], x[[var_in]][std[["index"]]])
+  conc <- drm_estimate(drm_model,  x[[var_in]])
+  conc <- as.data.frame(conc)
+  colnames(conc) <- c(var_out, paste0(var_out, "_std_err"), "in_range")
+  class(conc) <- c("tbl_df", "tbl", "data.frame")
+  conc
+  if (!isTRUE(.drop)) conc <- cbind(x, conc)
+  conc
 }
 
 #' @rdname elisa.analyse
 #' @export
-elisa.analyze <- elisa.analyse
+elisa_analyze <- elisa_analyse
