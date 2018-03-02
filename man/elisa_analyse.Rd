@@ -2,12 +2,18 @@
 % Please edit documentation in R/elisar.R
 \name{elisa_analyse}
 \alias{elisa_analyse}
+\alias{elisa_analyze}
 \title{Analyse the O.D. values (regression)}
 \usage{
-elisa_analyse(x, std_key = "^STD", dec = ".", var_in = "value",
+elisa_analyse(.data, std_key = "^STD", dec = ".", var_in = "value",
+  var_out = "estimate", .drop = FALSE)
+
+elisa_analyze(.data, std_key = "^STD", dec = ".", var_in = "value",
   var_out = "estimate", .drop = FALSE)
 }
 \arguments{
+\item{.data}{dataframe containing at least the value and id columns (with O.D. values and sample identifiers).}
+
 \item{std_key}{a character string specifying the common starting pattern of standard point ids (default = "^STD").}
 
 \item{dec}{a character string used as a decimal separator for the encoded standard concentration values.}
@@ -17,8 +23,6 @@ elisa_analyse(x, std_key = "^STD", dec = ".", var_in = "value",
 \item{var_out}{a character string used to name the output columns (default = "estimate")}
 
 \item{.drop}{Should input columns be dropped? (default = `FALSE`)}
-
-\item{.data}{dataframe containing at least the value and id columns (with O.D. values and sample identifiers).}
 
 \item{value}{a character string specifying the column containing the O.D. values (default = "value").}
 }

@@ -1,4 +1,5 @@
 #' @import readxl
+#' @importFrom utils installed.packages type.convert
 
 NULL
 
@@ -37,6 +38,19 @@ get_standard <- function(id, std_key = "^STD", dec = ".") {
   list(index = std_index, value = std_value)
 }
 
+#' @export
+extract_standard <- function(.data, x = "x", y = "y", std_key = "^STD", dec = ".") {
+  x <- get_arg(substitute(x))
+  y <- get_arg(substitute(y))
+  std <- get_standard(.data[["id"]], std_key, dec)
+  std <- data.frame(
+    x = std[["value"]],
+    y = .data[["value"]][std[["index"]]]
+  )
+  
+  colnames(std) <- c(x, y)
+  std
+}
 
 #' Analyse the O.D. values (regression)
 #'
@@ -66,7 +80,7 @@ get_standard <- function(id, std_key = "^STD", dec = ".") {
 #' }
 #'
 #' @export
-get_concentration <- function(id, value, std_key = "^STD", dec = ".") {
+od_to_concentration <- function(id, value, std_key = "^STD", dec = ".") {
   std <- get_standard(id, std_key, dec)
   drm_model <- std_fit(std[["value"]], value[std[["index"]]])
   conc <- drm_estimate(drm_model, value)
@@ -105,19 +119,19 @@ get_concentration <- function(id, value, std_key = "^STD", dec = ".") {
 #' }
 #'
 #' @export
-elisa_analyse <- function(x, std_key = "^STD", dec = ".", var_in = "value", var_out = "estimate", .drop = FALSE) {
+elisa_analyse <- function(.data, std_key = "^STD", dec = ".", var_in = "value", var_out = "estimate", .drop = FALSE) {
   check_arg(var_in, var_out, var_type = "character", var_length = 1)
-  std <- get_standard(x[["id"]], std_key, dec)
-  drm_model <- std_fit(std[[var_in]], x[[var_in]][std[["index"]]])
-  conc <- drm_estimate(drm_model,  x[[var_in]])
+  std <- get_standard(.data[["id"]], std_key, dec)
+  drm_model <- std_fit(std[[var_in]], .data[[var_in]][std[["index"]]])
+  conc <- drm_estimate(drm_model,  .data[[var_in]])
   conc <- as.data.frame(conc)
   colnames(conc) <- c(var_out, paste0(var_out, "_std_err"), "in_range")
   class(conc) <- c("tbl_df", "tbl", "data.frame")
   conc
-  if (!isTRUE(.drop)) conc <- cbind(x, conc)
+  if (!isTRUE(.drop)) conc <- cbind(.data, conc)
   conc
 }
 
-#' @rdname elisa.analyse
+#' @rdname elisa_analyse
 #' @export
 elisa_analyze <- elisa_analyse

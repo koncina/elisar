@@ -22,3 +22,7 @@ check_arg <- function(..., var_type = "character", var_length = 1) {
     stop(paste0("Invalid argument:\n", bad_arg), call. = FALSE)
   }
 }
+
+get_arg <- function(x) {
+  ifelse(is.character(x), x, deparse(x))
+}
