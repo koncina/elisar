@@ -30,6 +30,17 @@ set_element_attributes <- function(x, xls_matrix_attr, type, col_start, col_end,
   x
 }
 
+debug_line <- function(elt_attribute) {
+  elt_attribute <- with(elt_attribute, c(type = type, origin[c("file", "sheet")], coordinates[c("col_start", "row_start", "col_end", "row_end")]))
+  with(elt_attribute, message(sprintf("... Detected '%s' element at (col: %s, row: %s, width: %s, height: %s) in '%s' on sheet '%s'", type, col_start, row_start, col_end - col_start, row_end - row_start, basename(file), sheet)))
+}
+
+# Display some informations on detected elements
+error_message <- function(elements_list, msg) {
+  lapply(elements_list, function(x) debug_line(attributes(x)))
+  stop(msg, call. = FALSE)
+}
+
 # In the xls sheet matrix try to detect keywords for ID table or plate ("id" or row header "A")
 # For both functions we use apply to make a list out of the matrix ans switch to lapply: will make our life easier
 find_keyword <- function(xls_matrix, keyword) {

@@ -7,7 +7,7 @@ build_df <- function(data_v, layout_v) {
     element = do.call(sprintf, as.list(c("(%s, %s)", elt_attr[["coordinates"]][c("row_start", "col_start")]))),
     row = rep(LETTERS[1:dimension[1]], dimension[2]),
              col = rep(1:dimension[2], each = dimension[1]),
-             id = layout,
+             id = layout_v,
              value = as.vector(data_v),
     stringsAsFactors = FALSE)
 }
@@ -30,21 +30,21 @@ build_df <- function(data_v, layout_v) {
 #' }
 #'
 #' @export
-read_plate <- function(path) {
-  elements_list <- lapply(path, function(x) lapply(readxl::excel_sheets(x), extract_elements, path = x))
+read_plate <- function(path, na = "") {
+  elements_list <- lapply(path, function(x) lapply(readxl::excel_sheets(x), extract_elements, path = x, na = na))
   elements_list <- unlist_recursive(elements_list, depth = 2)
   # For now we will support only a single layout and ID table for all files (might change in a future release)
   # Extracting the type of each elements
   element_type <- sapply(elements_list, function(x) attributes(x)[["type"]])
   id_element <- which(element_type == "id")
   layout_element <- which(element_type == "layout")
-  if (length(id_element) > 1) stop("Only a single ID table is supported", call. = FALSE)
-  if (length(layout_element) > 1) stop("Only a single layout plate is supported", call. = FALSE)
+  if (length(id_element) > 1) error_message(elements_list, "Only a single ID table is supported")
+  if (length(layout_element) > 1) error_message(elements_list, "Only a single layout plate is supported")
   
   element_dim <- lapply(elements_list, function(x) attributes(x)[["dim"]])
   element_dim <- unique(remove_empty(element_dim))
   
-  if (length(element_dim) != 1) stop("Plates must have same dimensions", call. = FALSE)
+  if (length(element_dim) != 1) error_message(elements_list, "Plates must have same dimensions")
   # Extract layout vector
   layout_v <- as.vector(elements_list[[layout_element]])
 
@@ -54,6 +54,4 @@ read_plate <- function(path) {
                                                by = "id", sort = FALSE, all.x = TRUE)[, union(names(elt_df), names(elements_list[[id_element]]))]
   class(elt_df) <- c("tbl_df", "tbl", "data.frame") # Setting tibble class to allow pretty printing without tibble dependency
   elt_df
-
-  
 }
