@@ -9,19 +9,6 @@ read_xls_matrix <- function(path, sheet = 1, na = "") {
   xls_matrix
 }
 
-# Remove empty list elements
-remove_empty <- function(x) {
-  x[sapply(x, is.null)] <- NULL
-  x
-}
-
-# Perform a controlled recursive unlist
-unlist_recursive <- function(x, depth = 1) {
-  depth <- depth - 1
-  if (depth > 0) x <- unlist_recursive(x, depth)
-  unlist(x, recursive = FALSE)
-}
-
 set_element_attributes <- function(x, xls_matrix_attr, type, col_start, col_end, row_start, row_end) {
   attr(x, "coordinates") <- c(col_start = col_start, col_end = col_end, row_start = row_start, row_end = row_end)
   attr(x, "type") <- type
