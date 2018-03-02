@@ -6,7 +6,7 @@
 \usage{
 stat_4pl(mapping = NULL, data = NULL, geom = "line",
   position = "identity", na.rm = FALSE, show.legend = NA,
-  inherit.aes = TRUE, logDose = NULL, n = 100, verbose = FALSE, ...)
+  inherit.aes = TRUE, logDose = NULL, n = 100, ...)
 }
 \arguments{
 \item{mapping}{Set of aesthetic mappings created by \code{\link{aes}} or
@@ -47,8 +47,6 @@ the default plot specification, e.g. \code{\link{borders}}.}
 \item{logDose}{a numeric value or NULL. Argument to be passed to \code{drc::drm}. See \code{?drc::drm} for more informations. If no value is set, \code{stat_4pl} detects if \code{scale_x_log10()} has been used and adjusts logDose to 10.}
 
 \item{n}{Number of points used for interpolation.}
-
-\item{verbose}{If TRUE, shows informations for each 4PL regression.}
 
 \item{...}{other arguments passed on to \code{\link{layer}}. These are
 often aesthetics, used to set an aesthetic to a fixed value, like

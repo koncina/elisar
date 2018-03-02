@@ -1,34 +1,24 @@
-#' @import dplyr
 #' @import ggplot2
+
+NULL
 
 # Creating a 4PL regression curve layer for ggplot
 # Adapted from the example http://docs.ggplot2.org/dev/vignettes/extending-ggplot2.html
 
-# Eric Koncina 2016
-
 Stat4PL <- ggplot2::ggproto("Stat4PL", ggplot2::Stat, 
                             required_aes = c("x", "y"),
-                            compute_group = function(data, scales, logDose, n, verbose) {
-                              x.range <- scales$x$get_limits()
+                            compute_group = function(data, scales, logDose, n) {
+                              x_range <- scales$x$get_limits()
                               if (isTRUE(logDose)){
                                 if (scales$x$trans$name == "log-10") {
-                                  warning("adjusting drc::drm logDose to 10")
+                                  message("adjusting drc::drm logDose to 10")
                                   logDose <- 10
                                 }
                                 else logDose <- NULL
                               }
-                              model.4pl <- drc::drm(y ~ x, data = data, fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")), logDose = logDose)
-                              if (isTRUE(verbose)) {
-                                cat("\nData subgroup:\n")
-                                .group <- data %>%
-                                  select(everything(), -x, -y) %>%
-                                  unique() %>%
-                                  print(row.names = FALSE)
-                                cat("\n4PL model:\n")
-                                print(glance(model.4pl))
-                              }
-                              grid <- data.frame(x = seq(x.range[1], x.range[2], length.out = n))  %>%
-                                mutate(y = predict(model.4pl, .))
+                              model_4pl <- drc::drm(y ~ x, data = data, fct = drc::LL.4(names = c("Slope", "Lower", "Upper", "ED50")), logDose = logDose)
+                              grid <- data.frame(x = seq(x_range[1], x_range[2], length.out = n))
+                              grid["y"] <- predict(model_4pl, grid)
                               grid
                             }
 )
@@ -44,12 +34,10 @@ Stat4PL <- ggplot2::ggproto("Stat4PL", ggplot2::Stat,
 #' 
 #' @param na.rm If TRUE, remove NA values.
 #' 
-#' @param verbose If TRUE, shows informations for each 4PL regression.
-#' 
 #' @export
 stat_4pl <- function(mapping = NULL, data = NULL, geom = "line",
                      position = "identity", na.rm = FALSE, show.legend = NA, 
-                     inherit.aes = TRUE, logDose = NULL, n = 100, verbose = FALSE, ...) {
+                     inherit.aes = TRUE, logDose = NULL, n = 100, ...) {
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("ggplot2 needed for this function to work. Please install it.",
          call. = FALSE)
@@ -57,10 +45,9 @@ stat_4pl <- function(mapping = NULL, data = NULL, geom = "line",
   if (!"drc" %in% rownames(installed.packages())) stop("could not find drc library")
   if (!is.null(logDose) && !is.numeric(logDose)) stop("bad logDose argument. See ?drc::drm")
   if (missing(logDose)) logDose <- TRUE
-  if (isTRUE(verbose)) message("Showing 4PL model details")
   layer(
     stat = Stat4PL, data = data, mapping = mapping, geom = geom, 
     position = position, show.legend = show.legend, inherit.aes = inherit.aes,
-    params = list(logDose = logDose, n = n, na.rm = na.rm, verbose = verbose, ...)
+    params = list(logDose = logDose, n = n, na.rm = na.rm, ...)
   ) 
 }
