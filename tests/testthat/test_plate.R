@@ -26,3 +26,11 @@ test_that("reading a single excel file with more than one layout generates a spe
   expect_error(read_plate(c("example_full.xls", "example_layout.xls")),
                "^Only a single ID table is supported$")
 })
+
+test_that("No data plate generates an error", {
+  expect_error(read_plate("example_layout.xls"), "No data element was found")
+})
+
+test_that("No layout plate generates a warning", {
+  expect_warning(read_plate("example_no_layout.xls"), "No layout plate was detected")
+})
