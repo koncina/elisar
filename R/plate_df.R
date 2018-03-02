@@ -6,9 +6,9 @@ build_df <- function(data_v, layout_v) {
     sheet = elt_attr[["origin"]][["sheet"]],
     element = do.call(sprintf, as.list(c("(%s, %s)", elt_attr[["coordinates"]][c("row_start", "col_start")]))),
     row = rep(LETTERS[1:dimension[1]], dimension[2]),
-             col = rep(1:dimension[2], each = dimension[1]),
-             id = layout_v,
-             value = as.vector(data_v),
+    col = rep(1:dimension[2], each = dimension[1]),
+    id = layout_v,
+    value = as.vector(data_v),
     stringsAsFactors = FALSE)
 }
 
@@ -38,6 +38,10 @@ read_plate <- function(path, na = "") {
   element_type <- sapply(elements_list, function(x) attributes(x)[["type"]])
   id_element <- which(element_type == "id")
   layout_element <- which(element_type == "layout")
+  data_element <- -c(layout_element, id_element)
+  if (length(data_element) == 0) data_element <- seq_along(elements_list)
+  
+  if (length(elements_list) == length(c(layout_element, id_element))) error_message(elements_list, "No data element was found")
   if (length(id_element) > 1) error_message(elements_list, "Only a single ID table is supported")
   if (length(layout_element) > 1) error_message(elements_list, "Only a single layout plate is supported")
   
@@ -45,10 +49,15 @@ read_plate <- function(path, na = "") {
   element_dim <- unique(remove_empty(element_dim))
   
   if (length(element_dim) != 1) error_message(elements_list, "Plates must have same dimensions")
+  
   # Extract layout vector
-  layout_v <- as.vector(elements_list[[layout_element]])
+  if (length(layout_element) == 1) layout_v <- as.vector(elements_list[[layout_element]])
+  else {
+    layout_v <- NA_character_
+    warning("No layout plate was detected")
+    }
 
-  elt_df <- do.call(rbind, lapply(elements_list[-c(layout_element, id_element)], build_df, layout_v = layout_v))
+  elt_df <- do.call(rbind, lapply(elements_list[data_element], build_df, layout_v = layout_v))
   
   if (length(id_element) == 1) elt_df <- merge(elt_df, elements_list[[id_element]],
                                                by = "id", sort = FALSE, all.x = TRUE)[, union(names(elt_df), names(elements_list[[id_element]]))]
