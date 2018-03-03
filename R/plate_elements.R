@@ -112,7 +112,7 @@ get_element_list <- function(xls_matrix, coordinates, extractor) {
 #'
 #' Extract OD data, layout and ID tables from an excel file. Returns a list containing the plates as a matrix and the ID tables as `data.frame`.
 #'
-#' @param input vector containing the path(s) to the input file(s)
+#' @param path vector containing the path(s) to the input file(s)
 #' 
 #' @param sheet Sheet to read. Either a string (the name of a sheet), or an integer (the position of the sheet) (See `readxl::read_excel` help page).
 #'

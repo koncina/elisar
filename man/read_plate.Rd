@@ -7,7 +7,9 @@
 read_plate(path, na = "")
 }
 \arguments{
-\item{input}{vector containing the path(s) to the input file(s)}
+\item{path}{vector containing the path(s) to the input file(s)}
+
+\item{na}{character vector of strings to use for missing values (see readxl::read_excel)}
 }
 \description{
 Reads excel files exported from the MARS software (\url{http://www.bmglabtech.com/en/products/software/mars-data-analysis/}) or Tecan Magellan (\url{http://lifesciences.tecan.com/products/software/magellan_data_analysis_software}) and modified to include the plate layout (see documentation).

@@ -7,11 +7,11 @@
 extract_elements(path, sheet = 1, na = "")
 }
 \arguments{
+\item{path}{vector containing the path(s) to the input file(s)}
+
 \item{sheet}{Sheet to read. Either a string (the name of a sheet), or an integer (the position of the sheet) (See `readxl::read_excel` help page).}
 
 \item{na}{Character vector of strings to use for missing values. (See `readxl::read_excel` help page)}
-
-\item{input}{vector containing the path(s) to the input file(s)}
 }
 \description{
 Extract OD data, layout and ID tables from an excel file. Returns a list containing the plates as a matrix and the ID tables as `data.frame`.

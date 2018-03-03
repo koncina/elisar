@@ -16,7 +16,9 @@ build_df <- function(data_v, layout_v) {
 #'
 #' Reads excel files exported from the MARS software (\url{http://www.bmglabtech.com/en/products/software/mars-data-analysis/}) or Tecan Magellan (\url{http://lifesciences.tecan.com/products/software/magellan_data_analysis_software}) and modified to include the plate layout (see documentation).
 #'
-#' @param input vector containing the path(s) to the input file(s)
+#' @param path vector containing the path(s) to the input file(s)
+#' 
+#' @param na character vector of strings to use for missing values (see readxl::read_excel)
 #' 
 #' @details Example on how to prepare the excel file can be found at \url{https://github.com/koncina/elisar}.
 #'

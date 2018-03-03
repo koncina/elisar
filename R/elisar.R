@@ -1,4 +1,5 @@
 #' @import readxl
+#' @importFrom drc LL.4 drm
 #' @importFrom utils installed.packages type.convert
 
 NULL
@@ -38,6 +39,23 @@ get_standard <- function(id, std_key = "^STD", dec = ".") {
   list(index = std_index, value = std_value)
 }
 
+
+#' Extract the standard curve
+#'
+#' Parse the id for the standard curve key and extract the concentration and associated O.D. values.
+#' 
+#' @param .data dataframe containing at least the value and id columns (with O.D. values and sample identifiers).
+#' 
+#' @param x name of the concentration column
+#' 
+#' @param y name of the O.D. column
+#' 
+#' @param std_key a character string specifying the common starting pattern of standard point ids (default = "^STD").
+#' 
+#' @param dec a character string used as a decimal separator for the encoded standard concentration values.
+#' 
+#' @return A data frame containing the standard curve
+#'
 #' @export
 extract_standard <- function(.data, x = "x", y = "y", std_key = "^STD", dec = ".") {
   x <- get_arg(substitute(x))
@@ -63,8 +81,6 @@ extract_standard <- function(.data, x = "x", y = "y", std_key = "^STD", dec = ".
 #' @param std_key a character string specifying the common starting pattern of standard point ids (default = "^STD").
 #' 
 #' @param dec a character string used as a decimal separator for the encoded standard concentration values.
-#' 
-#' @param .drop Should input columns be dropped? (default = `TRUE`)
 #' 
 #' @return A numerical vector containing the calculated concentrations.
 #'
@@ -126,9 +142,8 @@ elisa_analyse <- function(.data, std_key = "^STD", dec = ".", var_in = "value", 
   conc <- drm_estimate(drm_model,  .data[[var_in]])
   conc <- as.data.frame(conc)
   colnames(conc) <- c(var_out, paste0(var_out, "_std_err"), "in_range")
-  class(conc) <- c("tbl_df", "tbl", "data.frame")
-  conc
   if (!isTRUE(.drop)) conc <- cbind(.data, conc)
+  class(conc) <- c("tbl_df", "tbl", "data.frame")
   conc
 }
 

@@ -3,16 +3,10 @@ Type: Package
 Title: Elisa 4PL regression
 Version: 0.2.9000
 Authors@R: c(person("Eric", "Koncina", , "mail@koncina.eu", c("aut", "cre")))
-Description: Perform a 4PL regression of Elisa O.D. measures. Loads Tecan
-    Sunrise excel files (edited to contain the plate layout and sample informations)
+Description: Perform a 4PL regression of Elisa O.D. measures. Loads Tecan 
+    Sunrise excel files (edited to contain the plate layout and sample informations).
 Imports:
     drc,
-    dplyr,
-    purrr,
-    tidyr,
-    digest,
-    broom,
-    readr,
     readxl,
     ggplot2
 URL: http://eric.koncina.eu/r/elisar

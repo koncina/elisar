@@ -14,8 +14,6 @@ od_to_concentration(id, value, std_key = "^STD", dec = ".")
 \item{std_key}{a character string specifying the common starting pattern of standard point ids (default = "^STD").}
 
 \item{dec}{a character string used as a decimal separator for the encoded standard concentration values.}
-
-\item{.drop}{Should input columns be dropped? (default = `TRUE`)}
 }
 \value{
 A numerical vector containing the calculated concentrations.
