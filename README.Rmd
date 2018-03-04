@@ -52,6 +52,7 @@ _Modified Tecan Excel file to include sample identifications:_
 ### Import the file in _R_
 
 ```{r input}
+library(tidyverse)
 library(elisar)
 example <- system.file("extdata", "example.xls", package="elisar")
 (input <- read_plate(example))
@@ -60,8 +61,10 @@ example <- system.file("extdata", "example.xls", package="elisar")
 ### Perform the regression
 
 ```{r analyse}
-df <- elisa_analyse(input)
-df
+system.file("extdata", "example.xls", package="elisar") %>%
+  read_plate() %>%
+  elisa_analyse() %>%
+  glimpse()
 ```
 
 The `elisa_analyse()` function performs a 4 parameter logistic regression (using `drc::drm()`) and returns a dataframe with the calculated concentration values.
@@ -70,21 +73,21 @@ The `elisa_analyse()` function performs a 4 parameter logistic regression (using
 The `extract_standard()` function extracts the standard points from the dataframe (converting the dose values encoded in the id column to numbers)
 
 ```{r, warning = FALSE, message = FALSE}
-extract_standard(input, od, concentration)
+extract_standard(input, concentration, od) %>%
+  arrange(concentration)
 ```
 
 The `extract_standard()` output can easily be integrated in `ggplot()` to render the regression curve (using `elisar::stat_4pl()` to draw the `drc::drm()` 4PL regression model).
 
-```{r standard, warning = FALSE}
-library(ggplot2)
-library(scales)
-
+```{r standard}
 ggplot(extract_standard(df),
        aes(x = x, y = log10(y))) +
   scale_x_log10() +
   annotation_logticks(sides = "b") +
   geom_point(size = 3) +
   stat_4pl(color = "red", size = 1) +
-  xlab("Concentration in pg/ml") +
+  labs(title = "Standard curve",
+       x = "Concentration in pg/ml",
+       y = "log10(O.D.)") +
   theme_bw()
 ```
