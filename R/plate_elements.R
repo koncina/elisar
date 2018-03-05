@@ -2,7 +2,10 @@ NULL
 
 # read the spreadsheet as a character matrix to identify elements
 read_xls_matrix <- function(path, sheet = 1, na = "") {
-  xls_matrix <- read_excel(path, sheet = sheet, col_names = FALSE, col_types = "text", na = na)
+  # Create a cellranger object without cellranger 
+  xls_range <- list(ul = c(1, 1), lr = c(NA_integer_, NA_integer_), sheet = NA)
+  class(xls_range) <- "cell_limits"
+  xls_matrix <- read_excel(path, sheet = sheet, range = xls_range, col_names = FALSE, col_types = "text", na = na)
   xls_matrix <- unname(as.matrix(xls_matrix))
   attr(xls_matrix, "sheet") <- sheet
   attr(xls_matrix, "path") <- path
