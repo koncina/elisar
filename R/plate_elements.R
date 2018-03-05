@@ -76,14 +76,7 @@ find_coordinates_plate <- function(row_start, col_start, xls_matrix) {
   
   if (!all(row_names[["values"]][1], col_names[["values"]][1])) return(NULL)
   
-  # Define valid plaste sizes for 6, 12, 24, 48 and 96 well plates
-  valid_cols <- c(3, 4, 6, 8, 12)
-  valid_rows <- c(2, 3, 4, 6, 8)
-  
-  # Find the best match using the detected plate headers
-  best_match <- max(which((valid_cols <= col_names[["lengths"]][1] & valid_rows <= row_names[["lengths"]][1])))
-  
-  c(col_start = col_start, col_end = col_start + valid_cols[best_match], row_start = row_start, row_end = row_start + valid_rows[best_match])
+  c(col_start = col_start, col_end = col_start + col_names[["lengths"]][1], row_start = row_start, row_end = row_start + row_names[["lengths"]][1])
 }
 
 extract_id_table <- function(col_start, col_end, row_start, row_end, xls_matrix) {
