@@ -1,6 +1,9 @@
 ---
 output: github_document
 ---
+```{r setup, include = FALSE}
+library(tidyverse)
+```
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
@@ -19,7 +22,7 @@ knitr::opts_chunk$set(
 [![codecov](https://codecov.io/gh/koncina/elisar/branch/master/graph/badge.svg)](https://codecov.io/gh/koncina/elisar)
 
 
-The goal of elisar is to handle Tecan Sunrise excel exports which were modified to include the plate layout and sample identifications. It will perform a 4PL regression (using the `drc` library) and return a dataframe containing the concentrations corresponding to the O.D. values.
+The goal of elisar is to handle Tecan Sunrise excel exports which were modified to include the plate layout and sample identifications. It will perform a 4PL regression (using the `drc` library) and return a data frame containing the concentrations corresponding to the O.D. values.
 
 ## Installation
 
@@ -35,59 +38,65 @@ devtools::install_github("koncina/elisar")
 ### Prepare the Excel files
 
 1. Export Tecan sunrise results as MS Excel `.xls` files.
-2. Open the file (an example is shown in the screenshots below), duplicate the sheet and optionally rename it (e.g. `id`).
-3. On the duplicated sheet replace the O.D. values by unique identifiers for each sample and standard.
-  - The standard values are constructed with a common leading `std_key` id (defaults to `STD_` but can be adjusted in the `elisa_analyse()` function) merged to a trailing concentration value. For example: 250, 500 and 1000 pg/ml standard points would be encoded as STD_250, STD_500 and STD_1000 (see wells in rows A-G and columns 11 to 12 in the second screenshot below).
-4. It is possible to extend the identifications by placing a second table below the layout. The table should contain headers and requires the mandatory column `id` which should list all IDs reported in the layout. One can add as much columns as required to fully describe the data.
+2. Add the layout (column names from `1` to `12` and row names from `A` to `H`) to fill in the IDs for each deposited sample.
+    - Plate the layout plate on the same sheet, another sheet in the same file or even in another excel file.
+    - The standard values are constructed with a common leading `std_key` id (defaults to `STD` but can be adjusted in the `elisa_analyse()` function) merged to a trailing concentration value. For example: 250, 500 and 1000 pg/ml standard points would be encoded as STD250, STD500 and STD1000 (see wells in rows A-G and columns 11 to 12 in the screenshot below).
+3. Add an optional table to extend the identifications. The table should contain the mandatory column `id` listing all IDs reported in the layout. One can add as much columns as required to fully describe the data.
 
-#### Screenshots
+_Example of a modified Excel file: _
 
-_Original Tecan Excel file: _
-
-![alt text](README-01.png)
-
-_Modified Tecan Excel file to include sample identifications:_
-![alt text](README-02.png)
+![alt text](man/figures/README-xls.png)
 
 ### Import the file in _R_
+
+Use the `read_plate()` to read in the O.D. values together with the IDs and extended informations as a data frame.\
+A vector containing multiple files can be passed to `read_plate()`: These files can contain multiple data plates (O.D. values) but only a single layout and ID table should be present among all files.
 
 ```{r input}
 library(tidyverse)
 library(elisar)
-example <- system.file("extdata", "example.xls", package="elisar")
-(input <- read_plate(example))
+
+elisar_example() %>%
+  read_plate() %>%
+  glimpse()
 ```
 
 ### Perform the regression
 
 ```{r analyse}
-system.file("extdata", "example.xls", package="elisar") %>%
+elisar_example() %>%
   read_plate() %>%
   elisa_analyse() %>%
   glimpse()
 ```
 
-The `elisa_analyse()` function performs a 4 parameter logistic regression (using `drc::drm()`) and returns a dataframe with the calculated concentration values.
-**Note** that a warning is displayed when O.D. values are not within the range of standard points. These values are tagged as FALSE in the `in_range` column.
+The `elisa_analyse()` function performs a 4 parameter logistic regression (using `drc::drm()`) and returns a data frame with the calculated concentration values.\
+A warning is displayed when O.D. values are outside the standard curve range. These values will be tagged as `FALSE` in the `in_range` column.
 
-The `extract_standard()` function extracts the standard points from the dataframe (converting the dose values encoded in the id column to numbers)
+The `extract_standard()` function extracts the standard points from the data frame (converting the dose values encoded in the id column to numbers)
 
 ```{r, warning = FALSE, message = FALSE}
-extract_standard(input, concentration, od) %>%
+elisar_example() %>%
+  read_plate() %>%
+  extract_standard(concentration, od) %>%
   arrange(concentration)
 ```
 
-The `extract_standard()` output can easily be integrated in `ggplot()` to render the regression curve (using `elisar::stat_4pl()` to draw the `drc::drm()` 4PL regression model).
+To render the regression curve, the output of `extract_standard()` can be used by `ggplot()` (with the `elisar::stat_4pl()` layer to draw the `drc::drm()` 4PL regression model).
 
 ```{r standard}
-ggplot(extract_standard(df),
-       aes(x = x, y = log10(y))) +
+elisar_example() %>%
+  read_plate() %>%
+  extract_standard() %>%
+  ggplot(aes(x = x, y = y)) +
+  scale_y_log10() +
   scale_x_log10() +
-  annotation_logticks(sides = "b") +
-  geom_point(size = 3) +
+  annotation_logticks(sides = "lb") +
+  geom_point(size = 3, alpha = 0.5) +
   stat_4pl(color = "red", size = 1) +
-  labs(title = "Standard curve",
+  labs(title = "Standard curve example",
        x = "Concentration in pg/ml",
-       y = "log10(O.D.)") +
-  theme_bw()
+       y = "O.D. value") +
+  theme_classic()
 ```
+

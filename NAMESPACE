@@ -2,6 +2,7 @@
 
 export(elisa_analyse)
 export(elisa_analyze)
+export(elisar_example)
 export(extract_elements)
 export(extract_standard)
 export(od_to_concentration)

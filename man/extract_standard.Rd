@@ -4,7 +4,8 @@
 \alias{extract_standard}
 \title{Extract the standard curve}
 \usage{
-extract_standard(.data, x = "x", y = "y", std_key = "^STD", dec = ".")
+extract_standard(.data, x = "x", y = "y", std_key = "^STD", dec = ".",
+  var_in = "value")
 }
 \arguments{
 \item{.data}{dataframe containing at least the value and id columns (with O.D. values and sample identifiers).}
@@ -16,6 +17,8 @@ extract_standard(.data, x = "x", y = "y", std_key = "^STD", dec = ".")
 \item{std_key}{a character string specifying the common starting pattern of standard point ids (default = "^STD").}
 
 \item{dec}{a character string used as a decimal separator for the encoded standard concentration values.}
+
+\item{var_in}{a character string used for the OD values (default = "value")}
 }
 \value{
 A data frame containing the standard curve

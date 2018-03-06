@@ -54,12 +54,16 @@ get_standard <- function(id, std_key = "^STD", dec = ".") {
 #' 
 #' @param dec a character string used as a decimal separator for the encoded standard concentration values.
 #' 
+#' @param var_in a character string used for the OD values (default = "value")
+#' 
 #' @return A data frame containing the standard curve
 #'
 #' @export
-extract_standard <- function(.data, x = "x", y = "y", std_key = "^STD", dec = ".") {
+extract_standard <- function(.data, x = "x", y = "y", std_key = "^STD", dec = ".", var_in = "value") {
   x <- get_arg(substitute(x))
   y <- get_arg(substitute(y))
+  check_arg(var_in, var_type = "character", var_length = 1)
+  check_data(.data, "id", var_in)
   std <- get_standard(.data[["id"]], std_key, dec)
   std <- data.frame(
     x = std[["value"]],
@@ -137,6 +141,7 @@ od_to_concentration <- function(id, value, std_key = "^STD", dec = ".") {
 #' @export
 elisa_analyse <- function(.data, std_key = "^STD", dec = ".", var_in = "value", var_out = "estimate", .drop = FALSE) {
   check_arg(var_in, var_out, var_type = "character", var_length = 1)
+  check_data(.data, "id", var_in)
   std <- get_standard(.data[["id"]], std_key, dec)
   drm_model <- std_fit(std[[var_in]], .data[[var_in]][std[["index"]]])
   conc <- drm_estimate(drm_model,  .data[[var_in]])

@@ -1,198 +1,132 @@
-# ElisaR
 
-[![Travis-CI Build Status](https://travis-ci.org/koncina/elisar.svg?branch=master)](https://travis-ci.org/koncina/elisar)
-[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/koncina/elisar?branch=master&svg=true)](https://ci.appveyor.com/project/koncina/elisar)
-[![codecov](https://codecov.io/gh/koncina/elisar/branch/master/graph/badge.svg)](https://codecov.io/gh/koncina/elisar)
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+elisar
+======
 
+[![Travis-CI Build Status](https://travis-ci.org/koncina/elisar.svg?branch=master)](https://travis-ci.org/koncina/elisar) [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/koncina/elisar?branch=master&svg=true)](https://ci.appveyor.com/project/koncina/elisar) [![codecov](https://codecov.io/gh/koncina/elisar/branch/master/graph/badge.svg)](https://codecov.io/gh/koncina/elisar)
 
+The goal of elisar is to handle Tecan Sunrise excel exports which were modified to include the plate layout and sample identifications. It will perform a 4PL regression (using the `drc` library) and return a data frame containing the concentrations corresponding to the O.D. values.
 
-> ElisaR can handle Tecan Sunrise excel exports which were modified to include the plate layout and sample identifications. It will perform a 4PL regression (using the `drc` library) and return a dataframe containing the concentrations corresponding to the O.D. values.
+Installation
+------------
 
-## Installation
+You can install elisar from github with:
 
+``` r
+# install.packages("devtools")
+devtools::install_github("koncina/elisar")
 ```
-devtools::install_git('https://github.com/koncina/elisar.git')
-```
 
-## Usage
+Example
+-------
 
 ### Prepare the Excel files
 
-1. Export Tecan sunrise results as MS Excel `.xls` files.
-2. Open the file (an example is shown in the screenshots below), duplicate the sheet and optionally rename it (e.g. `id`).
-3. On the duplicated sheet replace the O.D. values by unique identifiers for each sample and standard.
-  - Unused wells can be specified by the keyword `empty` (case insensitive)
-  - The blank value is specified by the keyword `blank` (case insensitive)
-  - The standard values are constructed with a common leading `std.key` id (defaults to `STD` but can be adjusted in the `elisa.analyse()` function) merged to a trailing concentration value. For example: 250, 500 and 1000 pg/ml standard points would be encoded as STD250, STD500 and STD1000 (see wells in rows A-G and columns 11 to 12 in the second screenshot below).
-4. It is possible to extend the identifications by placing a second table below the layout. The table should contain headers and requires the mandatory column `id` which should list all IDs reported in the layout. One can add as much columns as required to fully describe the data.
+1.  Export Tecan sunrise results as MS Excel `.xls` files.
+2.  Add the layout (column names from `1` to `12` and row names from `A` to `H`) to fill in the IDs for each deposited sample.
+    -   Plate the layout plate on the same sheet, another sheet in the same file or even in another excel file.
+    -   The standard values are constructed with a common leading `std_key` id (defaults to `STD` but can be adjusted in the `elisa_analyse()` function) merged to a trailing concentration value. For example: 250, 500 and 1000 pg/ml standard points would be encoded as STD250, STD500 and STD1000 (see wells in rows A-G and columns 11 to 12 in the screenshot below).
+3.  Add an optional table to extend the identifications. The table should contain the mandatory column `id` listing all IDs reported in the layout. One can add as much columns as required to fully describe the data.
 
-#### Screenshots
+*Example of a modified Excel file: *
 
-*Original Tecan Excel file:*
-![alt text](example/01.png)
+![alt text](man/figures/README-xls.png)
 
-*Modified Tecan Excel file to include sample identifications:*
-![alt text](example/02.png)
+### Import the file in *R*
 
-### Import the file in _R_
+Use the `read_plate()` to read in the O.D. values together with the IDs and extended informations as a data frame.
+A vector containing multiple files can be passed to `read_plate()`: These files can contain multiple data plates (O.D. values) but only a single layout and ID table should be present among all files.
 
-
-```r
+``` r
+library(tidyverse)
 library(elisar)
-example <- system.file("extdata", "example_full.xls", package="elisar")
-input <- read.plate(example)
-```
 
-```
-## readxl returned a dataframe without column names (NA): Trying a workaround
-```
-
-```r
-input
-```
-
-```
-## Source: local data frame [34 x 9]
-## 
-##                file   row column    id description treatment medium
-##               <chr> <chr>  <chr> <chr>       <chr>     <chr>  <chr>
-## 1  example_full.xls     G      1   M1A        M1_A         A     M1
-## 2  example_full.xls     H      1   M2A        M2_A         A     M2
-## 3  example_full.xls     G      2   M1A        M1_A         A     M1
-## 4  example_full.xls     H      2   M2A        M2_A         A     M2
-## 5  example_full.xls     G      3   M1A        M1_A         A     M1
-## 6  example_full.xls     H      3   M2A        M2_A         A     M2
-## 7  example_full.xls     G      4   M1B        M1_B         B     M1
-## 8  example_full.xls     H      4   M2B        M2_B         B     M2
-## 9  example_full.xls     G      5   M1B        M1_B         B     M1
-## 10 example_full.xls     H      5   M2B        M2_B         B     M2
-## ..              ...   ...    ...   ...         ...       ...    ...
-## Variables not shown: sheet <chr>, value <dbl>.
+elisar_example() %>%
+  read_plate() %>%
+  glimpse()
+#> Observations: 96
+#> Variables: 10
+#> $ file        <chr> "example.xls", "example.xls", "example.xls", "exam...
+#> $ sheet       <chr> "Magellan Sheet 1", "Magellan Sheet 1", "Magellan ...
+#> $ element     <chr> "(1, 1)", "(1, 1)", "(1, 1)", "(1, 1)", "(1, 1)", ...
+#> $ row         <chr> "G", "G", "G", "H", "H", "H", "G", "G", "G", "H", ...
+#> $ col         <int> 1, 2, 3, 1, 3, 2, 5, 6, 4, 4, 6, 5, 8, 7, 9, 9, 8,...
+#> $ id          <chr> "M1A", "M1A", "M1A", "M2A", "M2A", "M2A", "M1B", "...
+#> $ value       <dbl> 0.516, 0.251, 0.112, 0.231, 0.092, 0.180, 0.072, 0...
+#> $ description <chr> "M1_A", "M1_A", "M1_A", "M2_A", "M2_A", "M2_A", "M...
+#> $ treatment   <chr> "A", "A", "A", "A", "A", "A", "B", "B", "B", "B", ...
+#> $ medium      <chr> "M1", "M1", "M1", "M2", "M2", "M2", "M1", "M1", "M...
 ```
 
 ### Perform the regression
 
-
-```r
-df <- elisa.analyse(input)
+``` r
+elisar_example() %>%
+  read_plate() %>%
+  elisa_analyse() %>%
+  glimpse()
+#> Warning: 15 OD values are outside the standard range
+#> Observations: 96
+#> Variables: 13
+#> $ file             <chr> "example.xls", "example.xls", "example.xls", ...
+#> $ sheet            <chr> "Magellan Sheet 1", "Magellan Sheet 1", "Mage...
+#> $ element          <chr> "(1, 1)", "(1, 1)", "(1, 1)", "(1, 1)", "(1, ...
+#> $ row              <chr> "G", "G", "G", "H", "H", "H", "G", "G", "G", ...
+#> $ col              <int> 1, 2, 3, 1, 3, 2, 5, 6, 4, 4, 6, 5, 8, 7, 9, ...
+#> $ id               <chr> "M1A", "M1A", "M1A", "M2A", "M2A", "M2A", "M1...
+#> $ value            <dbl> 0.516, 0.251, 0.112, 0.231, 0.092, 0.180, 0.0...
+#> $ description      <chr> "M1_A", "M1_A", "M1_A", "M2_A", "M2_A", "M2_A...
+#> $ treatment        <chr> "A", "A", "A", "A", "A", "A", "B", "B", "B", ...
+#> $ medium           <chr> "M1", "M1", "M1", "M2", "M2", "M2", "M1", "M1...
+#> $ estimate         <dbl> 159.998395, 70.308342, 5.933014, 62.798726, 0...
+#> $ estimate_std_err <dbl> 9.880593, 6.329615, 1.879901, 6.192559, NA, 5...
+#> $ in_range         <lgl> TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRU...
 ```
 
-```
-## 3 OD values are outside the standard range
-```
+The `elisa_analyse()` function performs a 4 parameter logistic regression (using `drc::drm()`) and returns a data frame with the calculated concentration values.
+A warning is displayed when O.D. values are outside the standard curve range. These values will be tagged as `FALSE` in the `in_range` column.
 
-```r
-df
-```
+The `extract_standard()` function extracts the standard points from the data frame (converting the dose values encoded in the id column to numbers)
 
-```
-## elisa.analyse() concentration values obtained from the OD with the following 4PL regression(s):
-## 
-##               file Slope:(Intercept) Lower:(Intercept) Upper:(Intercept)
-## 1 example_full.xls          -1.38447         0.1070846          3.200827
-##   ED50:(Intercept)
-## 1         622.9272
-## 
-## Source: local data frame [34 x 12]
-## 
-##                file column   row    id description treatment medium
-##               <chr>  <chr> <chr> <chr>       <chr>     <chr>  <chr>
-## 1  example_full.xls      1     G   M1A        M1_A         A     M1
-## 2  example_full.xls      1     H   M2A        M2_A         A     M2
-## 3  example_full.xls      2     G   M1A        M1_A         A     M1
-## 4  example_full.xls      2     H   M2A        M2_A         A     M2
-## 5  example_full.xls      3     G   M1A        M1_A         A     M1
-## 6  example_full.xls      3     H   M2A        M2_A         A     M2
-## 7  example_full.xls      4     G   M1B        M1_B         B     M1
-## 8  example_full.xls      4     H   M2B        M2_B         B     M2
-## 9  example_full.xls      5     G   M1B        M1_B         B     M1
-## 10 example_full.xls      5     H   M2B        M2_B         B     M2
-## ..              ...    ...   ...   ...         ...       ...    ...
-## Variables not shown: sheet <chr>, value <dbl>, concentration <dbl>,
-##   concentration.sd <dbl>, .valid <lgl>.
+``` r
+elisar_example() %>%
+  read_plate() %>%
+  extract_standard(concentration, od) %>%
+  arrange(concentration)
+#>    concentration    od
+#> 1         15.625 0.132
+#> 2         15.625 0.106
+#> 3         31.250 0.145
+#> 4         31.250 0.138
+#> 5         62.500 0.259
+#> 6         62.500 0.230
+#> 7        125.000 0.460
+#> 8        125.000 0.425
+#> 9        250.000 0.728
+#> 10       250.000 0.760
+#> 11       500.000 1.480
+#> 12       500.000 1.407
+#> 13      1000.000 2.110
+#> 14      1000.000 2.166
 ```
 
-The `elisa.analyse()` function performs a 4 parameter logistic regression (using `drc::drm()`) and returns a dataframe with the calculated concentration values.
-**Note** that a warning is displayed when O.D. values are not within the range of standard points. These values are tagged as FALSE in the `.valid` column.
+To render the regression curve, the output of `extract_standard()` can be used by `ggplot()` (with the `elisar::stat_4pl()` layer to draw the `drc::drm()` 4PL regression model).
 
-
-
-
-```r
-head(df)
-```
-
-```
-## Source: local data frame [6 x 12]
-## 
-##               file column   row    id description treatment medium
-##              <chr>  <chr> <chr> <chr>       <chr>     <chr>  <chr>
-## 1 example_full.xls      1     G   M1A        M1_A         A     M1
-## 2 example_full.xls      1     H   M2A        M2_A         A     M2
-## 3 example_full.xls      2     G   M1A        M1_A         A     M1
-## 4 example_full.xls      2     H   M2A        M2_A         A     M2
-## 5 example_full.xls      3     G   M1A        M1_A         A     M1
-## 6 example_full.xls      3     H   M2A        M2_A         A     M2
-##              sheet value concentration concentration.sd .valid
-##              <chr> <dbl>         <dbl>            <dbl>  <lgl>
-## 1 Magellan Sheet 1 0.516    159.998395         9.880593   TRUE
-## 2 Magellan Sheet 1 0.231     62.798726         6.192559   TRUE
-## 3 Magellan Sheet 1 0.251     70.308342         6.329615   TRUE
-## 4 Magellan Sheet 1 0.180     42.292176         5.570530   TRUE
-## 5 Magellan Sheet 1 0.112      5.933014         1.879901   TRUE
-## 6 Magellan Sheet 1 0.092      0.000000              NaN   TRUE
-```
-
-The `elisa.standard()` function extracts the standard points from the dataframe (converting the dose values encoded in the id column to numbers)
-
-
-```r
-elisa.standard(df)
-```
-
-```
-## Source: local data frame [14 x 6]
-## Groups: file [1]
-## 
-##                file column   row        id        x value
-##               (chr)  (chr) (chr)     (chr)    (dbl) (dbl)
-## 1  example_full.xls     11     A   STD1000 1000.000 2.110
-## 2  example_full.xls     11     B    STD500  500.000 1.480
-## 3  example_full.xls     11     C    STD250  250.000 0.728
-## 4  example_full.xls     11     D    STD125  125.000 0.460
-## 5  example_full.xls     11     E   STD62.5   62.500 0.259
-## 6  example_full.xls     11     F  STD31.25   31.250 0.145
-## 7  example_full.xls     11     G STD15.625   15.625 0.132
-## 8  example_full.xls     12     A   STD1000 1000.000 2.166
-## 9  example_full.xls     12     B    STD500  500.000 1.407
-## 10 example_full.xls     12     C    STD250  250.000 0.760
-## 11 example_full.xls     12     D    STD125  125.000 0.425
-## 12 example_full.xls     12     E   STD62.5   62.500 0.230
-## 13 example_full.xls     12     F  STD31.25   31.250 0.138
-## 14 example_full.xls     12     G STD15.625   15.625 0.106
-```
-
-The `elisa.standard()` output can easily be integrated in `ggplot()` to render the regression curve (using `elisar::stat_4pl()` to draw the `drc::drm()` 4PL regression model).
-
-
-```r
-library(dplyr, warn.conflicts = FALSE)
-library(ggplot2)
-library(scales)
-df %>%
-  elisa.standard() %>%
-  rename(od = value) %>%
-  ggplot(aes(x = x, y = log10(od))) +
+``` r
+elisar_example() %>%
+  read_plate() %>%
+  extract_standard() %>%
+  ggplot(aes(x = x, y = y)) +
+  scale_y_log10() +
   scale_x_log10() +
-  annotation_logticks(sides = "b") +
-  geom_point(size = 3) +
+  annotation_logticks(sides = "lb") +
+  geom_point(size = 3, alpha = 0.5) +
   stat_4pl(color = "red", size = 1) +
-  xlab("Concentration in pg/ml") +
-  theme_bw()
+  labs(title = "Standard curve example",
+       x = "Concentration in pg/ml",
+       y = "O.D. value") +
+  theme_classic()
+#> adjusting drc::drm logDose to 10
 ```
 
-![](README_files/figure-html/standard-1.png)<!-- -->
-
-### Options for the regression
-
-Some options of the `elisa.analyse()` function can be adjusted. Refer to the help page to list them (`?elisa.analyse`).
+![](README-standard-1.png)
