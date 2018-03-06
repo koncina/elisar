@@ -30,7 +30,7 @@ Example
 
 *Example of a modified Excel file: *
 
-![alt text](man/figures/README-xls.png)
+![](man/figures/README-xls.png)
 
 ### Import the file in *R*
 

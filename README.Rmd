@@ -13,6 +13,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   fig.path = "README-"
 )
+knitr::knit_hooks$set(pngquant = knitr::hook_pngquant)
 ```
 
 # elisar
@@ -45,7 +46,7 @@ devtools::install_github("koncina/elisar")
 
 _Example of a modified Excel file: _
 
-![alt text](man/figures/README-xls.png)
+![](man/figures/README-xls.png)
 
 ### Import the file in _R_
 
@@ -84,7 +85,7 @@ elisar_example() %>%
 
 To render the regression curve, the output of `extract_standard()` can be used by `ggplot()` (with the `elisar::stat_4pl()` layer to draw the `drc::drm()` 4PL regression model).
 
-```{r standard}
+```{r standard, pngquant = "--quality=65-80"}
 elisar_example() %>%
   read_plate() %>%
   extract_standard() %>%
