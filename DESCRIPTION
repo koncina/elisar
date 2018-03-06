@@ -1,7 +1,7 @@
 Package: elisar
 Type: Package
 Title: Elisa 4PL regression
-Version: 0.1
+Version: 0.1.1
 Date: 2016-02-12
 Author: Eric Koncina
 Maintainer: Eric Koncina <mail@koncina.eu>
