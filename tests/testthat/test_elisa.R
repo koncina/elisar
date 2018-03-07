@@ -23,7 +23,7 @@ test_that("standard can be extracted", {
   std_data <- extract_standard(od_data)
   expect_is(std_data, "data.frame")
   expect_equal(nrow(std_data), 14)
-  expect_equal(sort(unique(std_data$x)), c(15.625, 31.25, 62.5, 125, 250, 500, 1000))
+  expect_equal(sort(unique(std_data$concentration)), c(15.625, 31.25, 62.5, 125, 250, 500, 1000))
 })
 
 test_that("missing columns are detected", {
@@ -40,13 +40,13 @@ test_that("extracting standard with a different input variable works", {
   std_data <- extract_standard(od_data, var_in = "another_input")
   expect_is(std_data, "data.frame")
   expect_equal(nrow(std_data), 14)
-  expect_equal(sort(unique(std_data$x)), c(15.625, 31.25, 62.5, 125, 250, 500, 1000))
+  expect_equal(sort(unique(std_data$concentration)), c(15.625, 31.25, 62.5, 125, 250, 500, 1000))
 })
 
 test_that("extracting standard generates a data frame with the right column names", {
   od_data <- read_plate("example_full.xls", na = "Empty")
   std_data <- extract_standard(od_data)
-  expect_equal(colnames(std_data), c("x", "y"))
+  expect_equal(colnames(std_data), c("concentration", "od"))
   std_data <- extract_standard(od_data, alt_x, alt_y)
   expect_equal(colnames(std_data), c("alt_x", "alt_y"))
   std_data <- extract_standard(od_data, "alt_x", "alt_y")
