@@ -93,21 +93,23 @@ elisar_example() %>%
   read_plate() %>%
   extract_standard(concentration, od) %>%
   arrange(concentration)
+#> # A tibble: 14 x 2
 #>    concentration    od
-#> 1         15.625 0.132
-#> 2         15.625 0.106
-#> 3         31.250 0.145
-#> 4         31.250 0.138
-#> 5         62.500 0.259
-#> 6         62.500 0.230
-#> 7        125.000 0.460
-#> 8        125.000 0.425
-#> 9        250.000 0.728
-#> 10       250.000 0.760
-#> 11       500.000 1.480
-#> 12       500.000 1.407
-#> 13      1000.000 2.110
-#> 14      1000.000 2.166
+#>            <dbl> <dbl>
+#>  1          15.6 0.132
+#>  2          15.6 0.106
+#>  3          31.2 0.145
+#>  4          31.2 0.138
+#>  5          62.5 0.259
+#>  6          62.5 0.230
+#>  7         125.  0.460
+#>  8         125.  0.425
+#>  9         250.  0.728
+#> 10         250.  0.760
+#> 11         500.  1.48 
+#> 12         500.  1.41 
+#> 13        1000.  2.11 
+#> 14        1000.  2.17
 ```
 
 To render the regression curve, the output of `extract_standard()` can be used by `ggplot()` (with the `elisar::stat_4pl()` layer to draw the `drc::drm()` 4PL regression model).
@@ -116,7 +118,7 @@ To render the regression curve, the output of `extract_standard()` can be used b
 elisar_example() %>%
   read_plate() %>%
   extract_standard() %>%
-  ggplot(aes(x = x, y = y)) +
+  ggplot(aes(x = concentration, y = od)) +
   scale_y_log10() +
   scale_x_log10() +
   annotation_logticks(sides = "lb") +

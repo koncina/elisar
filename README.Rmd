@@ -89,7 +89,7 @@ To render the regression curve, the output of `extract_standard()` can be used b
 elisar_example() %>%
   read_plate() %>%
   extract_standard() %>%
-  ggplot(aes(x = x, y = y)) +
+  ggplot(aes(x = concentration, y = od)) +
   scale_y_log10() +
   scale_x_log10() +
   annotation_logticks(sides = "lb") +
