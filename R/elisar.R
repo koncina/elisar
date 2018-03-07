@@ -36,7 +36,7 @@ get_standard <- function(id, std_key = "^STD", dec = ".") {
   if (sum(std_index) == 0) stop("Could not detect any matching standard curve ID")
   std_value <- type.convert(sub(std_key, "", id[std_index]), as.is = TRUE, dec = dec)
   if (!is.numeric(std_value)) stop("Failed to parse standard concentration values")
-  list(index = std_index, value = std_value)
+  list(std_index = std_index, std_value = std_value)
 }
 
 
@@ -66,8 +66,8 @@ extract_standard <- function(.data, x = "x", y = "y", std_key = "^STD", dec = ".
   check_data(.data, "id", var_in)
   std <- get_standard(.data[["id"]], std_key, dec)
   std <- data.frame(
-    x = std[["value"]],
-    y = .data[["value"]][std[["index"]]]
+    x = std[["std_value"]],
+    y = .data[[var_in]][std[["std_index"]]]
   )
   
   colnames(std) <- c(x, y)
@@ -102,7 +102,7 @@ extract_standard <- function(.data, x = "x", y = "y", std_key = "^STD", dec = ".
 #' @export
 od_to_concentration <- function(id, value, std_key = "^STD", dec = ".") {
   std <- get_standard(id, std_key, dec)
-  drm_model <- std_fit(std[["value"]], value[std[["index"]]])
+  drm_model <- std_fit(std[["std_value"]], value[std[["std_index"]]])
   conc <- drm_estimate(drm_model, value)
   as.numeric(conc[["estimate"]][,1])
 }
@@ -143,7 +143,7 @@ elisa_analyse <- function(.data, std_key = "^STD", dec = ".", var_in = "value", 
   check_arg(var_in, var_out, var_type = "character", var_length = 1)
   check_data(.data, "id", var_in)
   std <- get_standard(.data[["id"]], std_key, dec)
-  drm_model <- std_fit(std[[var_in]], .data[[var_in]][std[["index"]]])
+  drm_model <- std_fit(std[["std_value"]], .data[[var_in]][std[["std_index"]]])
   conc <- drm_estimate(drm_model,  .data[[var_in]])
   conc <- as.data.frame(conc)
   colnames(conc) <- c(var_out, paste0(var_out, "_std_err"), "in_range")

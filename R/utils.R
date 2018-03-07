@@ -24,7 +24,7 @@ check_arg <- function(..., var_type = "character", var_length = 1) {
 }
 
 check_data <- function(.data, ...) {
-  if (!(is.data.frame(.data) && c(...) %in% colnames(.data))) stop(paste(".data must be a dataframe and contain at least the columns:", paste(..., sep = "; ")), call. = FALSE)
+  if (!(is.data.frame(.data) && all(c(...) %in% colnames(.data)))) stop(paste(".data must be a dataframe and contain at least the columns:", paste(..., sep = "; ")), call. = FALSE)
 }
 
 get_arg <- function(x) {
