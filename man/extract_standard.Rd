@@ -4,15 +4,15 @@
 \alias{extract_standard}
 \title{Extract the standard curve}
 \usage{
-extract_standard(.data, x = "x", y = "y", std_key = "^STD", dec = ".",
-  var_in = "value")
+extract_standard(.data, concentration = "concentration", od = "od",
+  std_key = "^STD", dec = ".", var_in = "value")
 }
 \arguments{
 \item{.data}{dataframe containing at least the value and id columns (with O.D. values and sample identifiers).}
 
-\item{x}{name of the concentration column}
+\item{concentration}{name of the concentration column}
 
-\item{y}{name of the O.D. column}
+\item{od}{name of the O.D. column}
 
 \item{std_key}{a character string specifying the common starting pattern of standard point ids (default = "^STD").}
 
